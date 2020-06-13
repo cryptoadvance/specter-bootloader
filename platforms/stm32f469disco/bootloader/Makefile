@@ -9,8 +9,6 @@ TARGET = bootloader
 ######################################
 # building variables
 ######################################
-# debug build?
-DEBUG = 1
 # optimization
 OPT = -Og
 
@@ -20,6 +18,7 @@ OPT = -Og
 #######################################
 # Build path
 BUILD_DIR = build
+CMN_DIR = ../common
 CORE_DIR = ../../../core
 LIB_DIR = ../../../lib
 DRV_DIR = ../drivers
@@ -33,9 +32,18 @@ main.c \
 stm32f4xx_it.c \
 system_stm32f4xx.c
 
+ifeq ($(DEBUG), 1)
+C_SOURCES += debug_startup.c
+endif
+
+# Common files
+C_SOURCES += $(addprefix $(CMN_DIR)/,\
+	)
+
 # Bootloader core
 C_SOURCES += $(addprefix $(CORE_DIR)/,\
 	secp256k1_add/ext_callbacks.c \
+	startup_mailbox.c \
 	)
 
 # STM32F4xx HAL
@@ -73,6 +81,11 @@ C_SOURCES += $(addprefix $(DRV_DIR)/BSP/STM32469I-Discovery/,\
 	)
 C_SOURCES += $(DRV_DIR)/BSP/Components/otm8009a/otm8009a.c
 
+# CRC32
+C_SOURCES += $(addprefix $(LIB_DIR)/crc32/,\
+	crc32.c \
+	)
+
 # FatFs
 C_SOURCES += $(addprefix $(LIB_DIR)/fatfs/source/,\
 	ff.c \
@@ -102,6 +115,7 @@ C_SOURCES += $(addprefix $(LIB_DIR)/secp256k1/src/,\
 C_INCLUDES =  \
 -I$(PWD) \
 -Iconfig \
+-I$(CMN_DIR) \
 -I$(CORE_DIR) \
 -I$(CORE_DIR)/config \
 -I$(CORE_DIR)/secp256k1_add \
@@ -109,6 +123,7 @@ C_INCLUDES =  \
 -I$(DRV_DIR)/CMSIS/Device/ST/STM32F4xx/Include \
 -I$(DRV_DIR)/STM32F4xx_HAL_Driver/Inc \
 -I$(DRV_DIR)/BSP/STM32469I-Discovery \
+-I$(LIB_DIR)/crc32 \
 -I$(DRV_DIR)/fatfs_io \
 -I$(LIB_DIR)/fatfs/source \
 -I$(LIB_DIR)/crypto \
@@ -121,6 +136,8 @@ C_DEFS =  \
 -DSTM32F469xx \
 -DHAVE_CONFIG_H \
 -DSECP256K1_BUILD \
+-D__BYTE_ORDER=1234 \
+-DCRC32_USE_LOOKUP_TABLE_SLICING_BY_8 \
 -Wno-unused-function
 
 # TODO: remove if unneded
@@ -147,11 +164,13 @@ CC = $(GCC_PATH)/$(PREFIX)gcc
 AS = $(GCC_PATH)/$(PREFIX)gcc -x assembler-with-cpp
 CP = $(GCC_PATH)/$(PREFIX)objcopy
 SZ = $(GCC_PATH)/$(PREFIX)size
+READELF = $(GCC_PATH)/$(PREFIX)readelf
 else
 CC = $(PREFIX)gcc
 AS = $(PREFIX)gcc -x assembler-with-cpp
 CP = $(PREFIX)objcopy
 SZ = $(PREFIX)size
+READELF = $(PREFIX)readelf
 endif
 HEX = $(CP) -O ihex
 BIN = $(CP) -O binary -S
@@ -180,7 +199,6 @@ ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2
 endif
 
-
 # Generate dependency information
 CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 
@@ -189,12 +207,17 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 # LDFLAGS
 #######################################
 # link script
-LDSCRIPT = STM32F469NIHx_FLASH.ld
+ifeq ($(DEBUG), 1)
+LDSCRIPT = bootloader_debug.ld
+else
+LDSCRIPT = bootloader.ld
+endif
+
 
 # libraries
 LIBS = -lc -lm -lnosys
 LIBDIR =
-LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections
+LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections -N
 
 # default action: build all
 all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
@@ -234,6 +257,9 @@ $(BUILD_DIR):
 #######################################
 clean:
 	-rm -fR $(BUILD_DIR)
+
+readelf:
+	$(READELF) -a $(BUILD_DIR)/$(TARGET).elf
 
 #######################################
 # dependencies
