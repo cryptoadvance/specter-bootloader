@@ -1,0 +1,7 @@
+cffi==1.14.0
+click==7.1.2
+cryptography==2.9.2
+intelhex==2.2.1
+pycparser==2.20
+six==1.15.0
+tqdm==4.46.1
