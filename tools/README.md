@@ -1,5 +1,19 @@
 # Bootloader Tools
 
+## Install
+
+These tools are developed and tested in isolated Python environment. To create an empty environment using virtualenv run (from the root project directoty):
+
+```bash
+virtualenv .venv
+```
+
+Python dependencies can installed with hash checking by running:
+
+```
+pip install --require-hashes -r requirements.txt
+```
+
 ## Test key generation
 
 To generate a test key for signing upgrade file use:

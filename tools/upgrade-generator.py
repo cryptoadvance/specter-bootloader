@@ -1,22 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-__author__ = "Mike Tolkachev <contact@miketolkachev.dev>"
+"""Upgrade file generator"""
+
+__author__    = "Mike Tolkachev <contact@miketolkachev.dev>"
 __copyright__ = "Copyright 2020 Crypto Advance GmbH. All rights reserved"
-__version__ = "1.0.0"
+__version__   = "1.0.0"
 
-"""Upgrade file generator
-"""
-
-import util.secp256k1 as secp256k1
+from core.blsection import *
+import core.signature as sig
 
 import click
 from tqdm import tqdm
 from intelhex import IntelHex
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.hazmat.backends import default_backend
-import os, hashlib, hmac
 
 @click.command(no_args_is_help=True)
 @click.version_option(__version__, message="%(version)s")
