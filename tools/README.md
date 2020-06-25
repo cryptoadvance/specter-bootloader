@@ -22,7 +22,19 @@ To generate a test key for signing upgrade file use:
 openssl ecparam -name secp256k1 -genkey -noout -out mykey.pem
 ```
 
-To inspect generated key:
+To encrypt a newly generated private key use:
+
+```bash
+openssl ec -aes256 -in mykey.pem -out mykey_enc.pem
+```
+
+Or, better, use a single command to avoid writing plaintext key to disk:
+
+```bash
+openssl ecparam -name secp256k1 -genkey | openssl ec -aes256 -out mykey.pem
+```
+
+To inspect generated key use:
 
 ```bash
 openssl pkey -in mykey.pem -text
