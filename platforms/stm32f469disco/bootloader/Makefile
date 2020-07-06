@@ -1,10 +1,12 @@
-# TODO: make debug switchable
+######################################
+# utilities
+######################################
+MKDIR_P = mkdir -p
 
 ######################################
 # target
 ######################################
 TARGET = bootloader
-
 
 ######################################
 # building variables
@@ -12,100 +14,44 @@ TARGET = bootloader
 # optimization
 OPT = -Og
 
-
 #######################################
 # paths
 #######################################
 # Build path
-BUILD_DIR = build
-CMN_DIR = ../common
-CORE_DIR = ../../../core
-LIB_DIR = ../../../lib
-DRV_DIR = ../drivers
+LOC_ROOT := $(strip $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
+TARG_ROOT := $(strip $(shell dirname $(LOC_ROOT)))
+CMN_ROOT := $(PWD)
+BUILD_DIR = $(CMN_ROOT)/build/$(TARGET_PLATFORM)/$(TARGET)
+CMN_DIR = $(TARG_ROOT)/common
+DRV_DIR = $(TARG_ROOT)/drivers
+CORE_DIR = $(CMN_ROOT)/core
+LIB_DIR = $(CMN_ROOT)/lib
 
 ######################################
 # source
 ######################################
 # C sources
-C_SOURCES =  \
-main.c \
-stm32f4xx_it.c \
-system_stm32f4xx.c
-
-ifeq ($(DEBUG), 1)
-C_SOURCES += debug_startup.c
-endif
-
+C_SOURCES  = $(shell find $(LOC_ROOT) -name *.c)
 # Common files
-C_SOURCES += $(addprefix $(CMN_DIR)/,\
-	)
-
+C_SOURCES += $(shell find $(CMN_DIR) -name *.c)
 # Bootloader core
-C_SOURCES += $(addprefix $(CORE_DIR)/,\
-	secp256k1_add/ext_callbacks.c \
-	startup_mailbox.c \
-	)
-
+C_SOURCES += $(shell find $(CORE_DIR) -name *.c)
 # STM32F4xx HAL
-C_SOURCES += $(addprefix $(DRV_DIR)/STM32F4xx_HAL_Driver/Src/stm32f4xx_,\
-	hal.c \
-	hal_cortex.c \
-	hal_crc.c \
-	hal_dma.c \
-	hal_dma2d.c \
-	hal_dma_ex.c \
-	hal_dsi.c \
-	hal_flash.c \
-	hal_flash_ex.c \
-	hal_flash_ramfunc.c \
-	hal_gpio.c \
-	hal_ltdc.c \
-	hal_ltdc_ex.c \
-	hal_pwr.c \
-	hal_pwr_ex.c \
-	hal_rcc.c \
-	hal_rcc_ex.c \
-  hal_sd.c \
-	hal_sdram.c \
-	hal_uart.c \
-	ll_fmc.c \
-	ll_sdmmc.c \
-	)
-
+C_SOURCES += $(shell find $(DRV_DIR)/STM32F4xx_HAL_Driver/Src -name *.c)
 # STM32469I-Discovery BSP
-C_SOURCES += $(addprefix $(DRV_DIR)/BSP/STM32469I-Discovery/,\
-	stm32469i_discovery.c \
-	stm32469i_discovery_lcd.c \
-	stm32469i_discovery_sd.c \
-	stm32469i_discovery_sdram.c \
-	)
-C_SOURCES += $(DRV_DIR)/BSP/Components/otm8009a/otm8009a.c
-
+C_SOURCES += $(shell find $(DRV_DIR)/BSP -name *.c)
 # CRC32
-C_SOURCES += $(addprefix $(LIB_DIR)/crc32/,\
-	crc32.c \
-	)
-
+C_SOURCES += $(shell find $(LIB_DIR)/crc32 -name *.c)
 # FatFs
 C_SOURCES += $(addprefix $(LIB_DIR)/fatfs/source/,\
 	ff.c \
 	ffsystem.c \
 	ffunicode.c \
 	)
-
 # FatFs IO layer
-C_SOURCES += $(addprefix $(DRV_DIR)/fatfs_io/,\
-	diskio_gen_drv.c \
-	ff_gen_drv.c \
-	sd_diskio.c \
-	)
-
+C_SOURCES += $(shell find $(DRV_DIR)/fatfs_io -name *.c)
 # Crypto library
-C_SOURCES += $(addprefix $(LIB_DIR)/crypto/,\
-	memzero.c \
-	sha2.c \
-	)
-
+C_SOURCES += $(shell find $(LIB_DIR)/crypto -name *.c)
 # libsecp256k1
 C_SOURCES += $(addprefix $(LIB_DIR)/secp256k1/src/,\
 	secp256k1.c \
@@ -113,8 +59,8 @@ C_SOURCES += $(addprefix $(LIB_DIR)/secp256k1/src/,\
 
 # C includes
 C_INCLUDES =  \
--I$(PWD) \
--Iconfig \
+-I$(LOC_ROOT) \
+-I$(LOC_ROOT)/config \
 -I$(CMN_DIR) \
 -I$(CORE_DIR) \
 -I$(CORE_DIR)/config \
@@ -144,8 +90,7 @@ C_DEFS =  \
 #-Wno-nonnull-compare
 
 # ASM sources
-ASM_SOURCES =  \
-startup_stm32f469xx.s
+ASM_SOURCES = $(shell find $(LOC_ROOT) -name *.s)
 
 # AS includes
 AS_INCLUDES =
@@ -196,7 +141,7 @@ ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffuncti
 CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
 
 ifeq ($(DEBUG), 1)
-CFLAGS += -g -gdwarf-2
+CFLAGS += -g -gdwarf-2 -DDEBUG=1
 endif
 
 # Generate dependency information
@@ -207,21 +152,20 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 # LDFLAGS
 #######################################
 # link script
+LDSCRIPT_LST = $(CMN_DIR)/memory_map.ld $(LOC_ROOT)/bootloader.ld
 ifeq ($(DEBUG), 1)
-LDSCRIPT = bootloader_debug.ld
-else
-LDSCRIPT = bootloader.ld
+LDSCRIPT_LST += $(LOC_ROOT)/bootloader_debug.ld
 endif
+LDSCRIPTS = $(addprefix -T,$(LDSCRIPT_LST))
 
 
 # libraries
 LIBS = -lc -lm -lnosys
 LIBDIR =
-LDFLAGS = $(MCU) -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections -N
+LDFLAGS = $(MCU) -specs=nano.specs $(LDSCRIPTS) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections -N
 
 # default action: build all
 all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
-
 
 #######################################
 # build the application
@@ -250,7 +194,7 @@ $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf | $(BUILD_DIR)
 	$(BIN) $< $@
 
 $(BUILD_DIR):
-	mkdir $@
+	mkdir -p $@
 
 #######################################
 # clean up

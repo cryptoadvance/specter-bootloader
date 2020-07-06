@@ -5,14 +5,57 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: upgrade-generator gen",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/tools/upgrade-generator.py",
+            "console": "integratedTerminal",
+            "args": ["gen", "-b", "build/stm32f469disco/bootloader/bootloader.hex",
+                "-f", "firmware.hex", "-k", "mykey.pem", "upgrade.bin"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Python: upgrade-generator sign",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/tools/upgrade-generator.py",
+            "console": "integratedTerminal",
+            "args": ["sign", "-k", "mykey2.pem", "upgrade.bin"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Python: upgrade-generator dump",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/tools/upgrade-generator.py",
+            "console": "integratedTerminal",
+            "args": ["dump", "upgrade.bin"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Python: Module",
+            "type": "python",
+            "request": "launch",
+            "module": "core"
+        },
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Debug",
             "cwd": "${workspaceRoot}",
-            "executable": "./platforms/stm32f469disco/bootloader/build/bootloader.elf",
+            "executable": "./build/stm32f469disco/bootloader/bootloader.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
             "svdFile": "./debug/STM32F469.svd",
-            "configFiles": [ "board/stm32f469discovery.cfg" ]
+            "configFiles": [
+                "board/stm32f469discovery.cfg"
+            ],
         }
     ]
 }

@@ -5,8 +5,6 @@
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
  */
 
-INCLUDE "../common/memory_map.ld"
-
 /* Default entry point (redefined in debug build) */
 ENTRY(Reset_Handler)
 

@@ -5,8 +5,6 @@
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
  */
 
-INCLUDE "bootloader.ld"
-
 /* Redefine entry point to dummy start-up code */
 ENTRY(debug_startup)
 

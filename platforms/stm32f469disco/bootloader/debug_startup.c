@@ -5,6 +5,8 @@
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
  */
 
+#if defined(DEBUG) && DEBUG
+
 #include "stm32f4xx_hal.h"
 #include "startup_mailbox.h"
 
@@ -106,3 +108,7 @@ static void (* const vectors_flash[240])(void) =
   (void (*)(void))((uint32_t)&_estack), // Initial value of stack pointer
   debug_startup                         // Reset handler
 };
+
+#else
+static volatile int unused_var;
+#endif // defined(DEBUG) && DEBUG
