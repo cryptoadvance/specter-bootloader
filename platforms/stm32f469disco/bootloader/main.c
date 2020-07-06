@@ -5,6 +5,10 @@
 #include "main.h"
 #include "stm32469i_discovery_lcd.h"
 
+/// Version in format parced by upgrade-generator
+static const char version_tag[] __attribute__((used)) =
+  "<version:tag10>0302213456</version:tag10>";
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 #define BLACK           0xFF000000
@@ -21,7 +25,22 @@ static uint8_t buffer[FF_MAX_SS]; /* a work buffer for the f_mkfs() */
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void Error_Handler(void);
+
 /* Private functions ---------------------------------------------------------*/
+
+/**
+ * No-op function used to keep variable from removal by compiler and linker
+ *
+ * It exists because "volatile" and "__attribute__((used))" do not work in 100%
+ * of cases and modification of linker script is inconvenient and may break
+ * existing projects.
+ *
+ * @param ptr  pointer to a variable
+ */
+static inline void keep_variable(volatile const void* ptr) {
+  (void)*(volatile const char*)ptr;
+}
+
 static void lcd_init(){
   BSP_LCD_Init();
   BSP_LCD_InitEx(LCD_ORIENTATION_PORTRAIT);
@@ -138,8 +157,9 @@ static void test_sd_card(void) {
   * @param  None
   * @retval None
   */
-int main(void)
-{
+int main(void) {
+  keep_variable(&version_tag);
+
   /* STM32F469xx HAL library initialization */
   HAL_Init();
 
@@ -152,6 +172,7 @@ int main(void)
 
   lcd_init();
   BSP_LCD_DisplayStringAt(0, 200, (uint8_t *)"Verifying firmware", CENTER_MODE);
+  //BSP_LCD_DisplayStringAt(0, 300, (uint8_t *)version_tag, CENTER_MODE); // !!!!
 
   test_sd_card();
 
