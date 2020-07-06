@@ -3,7 +3,6 @@ from .blsection import *
 from .blsection import _bl_section_t
 from .blsection import _bl_signature_rec_t
 from .blsection import _add_test_attributes
-from .blsection import _max_payload_size
 from .signature import *
 
 def test_version_to_str():
@@ -90,7 +89,7 @@ class Test_bl_section_t:
 
     def test_validate_wrong_pl_size(self):
         sect = _bl_section_t()
-        sect.pl_size = _max_payload_size + 1
+        sect.pl_size = MAX_PAYLOAD_SIZE + 1
         sect.calc_crc()
         with pytest.raises(ValueError):
             sect.validate()
