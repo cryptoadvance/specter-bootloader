@@ -28,6 +28,9 @@ class Test_bl_section_t:
         sect.set_attributes(attr)
         attr2 = sect.get_attributes()
         assert attr2 == attr
+        ref_str = ("bl_attr_algorithm: 'secp256k1-sha256', a2: None, "
+                   "a3: 123456789012, a4: 'This is a simple text. END'")
+        assert sect.get_attributes_str() == ref_str
 
     def test_crc(self):
         sect = _bl_section_t()

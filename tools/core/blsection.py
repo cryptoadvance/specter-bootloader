@@ -21,7 +21,7 @@ STRUCT_REV = 1
 # Supported revisions of the structure for deserialization
 _supported_revisions = [1]
 # Maximum allowed size of payload (16 megabytes)
-_max_payload_size = 16 * 1024 * 1024
+MAX_PAYLOAD_SIZE = 16 * 1024 * 1024
 # Supported digital signature algorithms
 _supported_algorithms = [DSA_SECP256K1_SHA256]
 
@@ -38,8 +38,12 @@ VERSION_TAG_CLOSE = b'</version:tag10>'
 # Number of decimal digits in ASCII encoding, following the version tag
 VERSION_DIGITS = 10
 
-# Mapping between attribute name and its (code, type)
-_attributes = { 'bl_attr_algorithm' : (1, str) }
+# Mapping between attribute name and its (code, type, format)
+_attributes = {
+    'bl_attr_algorithm'   : ( 1, str, "'{}'"   ),
+    'bl_attr_base_addr'   : ( 2, int, "0x{:x}" ),
+    'bl_attr_entry_point' : ( 3, int, "0x{:x}" ),
+}
 # Reverse lookup by attribute code
 _attribute_names = {v[0]: k for k, v in _attributes.items()}
 
@@ -48,9 +52,9 @@ _attribute_names = {v[0]: k for k, v in _attributes.items()}
 def _add_test_attributes():
     global _attributes, _attribute_names
     _attributes = { **_attributes,
-                    'a2': (0xa2, None),
-                    'a3': (0xa3, int),
-                    'a4': (0xa4, str) }
+                    'a2': ( 0xa2, None, "{}"   ),
+                    'a3': ( 0xa3, int,  "{}"   ),
+                    'a4': ( 0xa4, str,  "'{}'" ) }
     _attribute_names = {v[0]: k for k, v in _attributes.items() }
 
 def _validate_array(values, class_=None, accept_empty=False):
@@ -135,7 +139,7 @@ class _bl_section_t(LittleEndianStructure):
     def set_attributes(self, attributes):
         attr_list = []
         for key, value in attributes.items():
-            key_byte, attr_type = _attributes[key]
+            key_byte, attr_type, _ = _attributes[key]
             if attr_type is None:
                 if value:
                     raise TypeError("Value should be empty or None")
@@ -176,7 +180,7 @@ class _bl_section_t(LittleEndianStructure):
 
             try:
                 key = _attribute_names[key_byte]
-                _, attr_type = _attributes[key]
+                _, attr_type, _ = _attributes[key]
             except KeyError:
                 continue # Unknown attribute, skip it
 
@@ -191,6 +195,13 @@ class _bl_section_t(LittleEndianStructure):
                 attributes[key] = attr_type(value_buf)
 
         return attributes
+
+    def get_attributes_str(self):
+        attrs = []
+        for key, value in self.get_attributes().items():
+            item = ('{}: ' + (_attributes[key])[2]).format(key, value)
+            attrs.append(item)
+        return ', '.join(attrs)
 
     def calc_crc(self):
         data = bytes(self)[:sizeof(self) - self._CRC_SIZE]
@@ -241,7 +252,7 @@ class _bl_section_t(LittleEndianStructure):
             raise ValueError("Incorrect section name")
         if not is_version_valid(self.pl_ver):
             raise ValueError("Incorrect version of payload")
-        if self.pl_size > _max_payload_size:
+        if self.pl_size > MAX_PAYLOAD_SIZE:
             raise ValueError("Payload is larger than allowed")
         try:
             _ = self.get_attributes()
@@ -295,6 +306,10 @@ class Section(ABC):
     @attributes.setter
     def attributes(self, value):
         self._header.set_attributes(value)
+
+    @property
+    def attributes_str(self):
+        return self._header.get_attributes_str()
 
     @property
     def version(self):
@@ -437,6 +452,11 @@ class SignatureSection(Section):
         self._header.set_attributes({ 'bl_attr_algorithm' : dsa_algorithm })
 
     def _init_from_header(self, payload):
+        # Check if header contains supported algorithm
+        dsa_algorithm = self.attributes.get('bl_attr_algorithm', None)
+        if not dsa_algorithm in _supported_algorithms:
+            raise ValueError("Digital signature algorithm not supported")
+
         # Check payload
         if not isinstance(payload, _byteslike):
             raise TypeError("Payload must be bytes-like")

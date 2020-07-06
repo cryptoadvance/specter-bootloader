@@ -16,6 +16,9 @@ SIGNATURE_LEN = 64
 # Digital signature algorithm: secp256k1-sha256
 DSA_SECP256K1_SHA256 = 'secp256k1-sha256'
 
+class InvalidPassword(Exception):
+    pass
+
 def _validate_seckey(seckey):
     if not isinstance(seckey, _byteslike):
         raise TypeError("Private key should be bytes-like")
@@ -55,16 +58,18 @@ def _sha256(message):
 def is_pem_encrypted(data):
     """Checks if PEM source is encrypted."""
     try:
-        _ = serialization.load_pem_private_key(
-            data, password=None, backend=default_backend())
-    except TypeError:
+        seckey_from_pem(data, password=None)
+    except InvalidPassword:
         return True
     return False
 
 def seckey_from_pem(data, password=None):
     """Loads a private key from PEM source and returns it as byte string."""
-    key = serialization.load_pem_private_key(data, password,
-                                             backend=default_backend())
+    try:
+        key = serialization.load_pem_private_key(
+            data, password, backend=default_backend() )
+    except TypeError:
+        raise InvalidPassword
     key_int = key.private_numbers().private_value
     return key_int.to_bytes(key.key_size // 8, byteorder='big')
 

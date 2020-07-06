@@ -46,7 +46,7 @@ def cli():
 @click.argument(
     'upgrade_file',
     required=True,
-    type=click.File('wb+'),
+    type=click.File('wb'),
     metavar='<upgrade_file.bin>'
 )
 def generate(upgrade_file, bootloader_hex, firmware_hex, key_pem):
@@ -59,18 +59,27 @@ def generate(upgrade_file, bootloader_hex, firmware_hex, key_pem):
     encryption.
     """
 
-    if not (bootloader_hex or firmware_hex):
+    # Load private key if needed
+    seckey = None
+    if key_pem:
+        seckey = load_seckey(key_pem)
+
+    # Create payload sections from HEX files
+    sections = []
+    if bootloader_hex:
+        sections.append(create_payload_section(bootloader_hex, 'boot'))
+    if firmware_hex:
+        sections.append(create_payload_section(firmware_hex, 'internal'))
+    if not len(sections):
         raise click.ClickException("No input file specified")
 
-    # TODO: Create payload sections from HEX files
-    # TODO: Serialize sections to .bin file
+    # Sign firmware if requested
+    if seckey:
+        do_sign(sections, seckey)
 
-    # Sign created file if requested
-    if key_pem:
-        upgrade_file.seek(0)
-        sign(upgrade_file, key_pem)
-    else:
-        upgrade_file.close()
+    # Write upgrade file to disk
+    write_sections(upgrade_file, sections)
+
 
 @cli.command(
     'sign',
@@ -97,11 +106,17 @@ def sign(upgrade_file, key_pem):
     are removed automatically.
     """
 
-    # TODO: Load sections from .bin file
-    # TODO: Create signature section if absent
-    # TODO: Add signature if not existant yet with given key
-    # TODO: Serialize sections to .bin file
-    pass
+    # Load sections from firmware file
+    sections = load_sections(upgrade_file)
+
+    # Load private key and sign firmware
+    seckey = load_seckey(key_pem)
+    do_sign(sections, seckey)
+
+    # Write new upgrade file to disk
+    upgrade_file.truncate(0)
+    upgrade_file.seek(0)
+    write_sections(upgrade_file, sections)
 
 @cli.command(
     'dump',
@@ -118,22 +133,76 @@ def dump(upgrade_file):
     signatures with public key fingerprints.
     """
 
-    # TODO: Load sections from .bin file
-    # TODO: Dump information about payload sections
-    # TODO: Dump contents of signature section
-    pass
+    sections = load_sections(upgrade_file)
+    for s in sections:
+        version_str = s.version_str
+        print(f'SECTION "{s.name}"')
+        print(f'  attributes: {s.attributes_str}')
+        if s.version_str:
+            print(f'  version: {s.version_str}')
+        if isinstance(s, SignatureSection):
+            sigs = [f"{f.hex()}: {s.hex()}" for f, s in s.signatures.items()]
+            print("  signatures:\n    " + "\n    ".join(sigs))
+
+def create_payload_section(hex_file, section_name):
+    ih = IntelHex(hex_file)
+    attr = { 'bl_attr_base_addr' : ih.minaddr() }
+    entry = ih.start_addr.get('EIP', ih.start_addr.get('IP', None))
+    if isinstance(entry, int):
+        attr['bl_attr_entry_point'] = entry
+    exp_len = ih.maxaddr() - ih.minaddr() + 1
+    if exp_len > MAX_PAYLOAD_SIZE:
+        raise click.ClickException(f"Error while parsing '{hex_file.name}'")
+    pl_bytes = ih.tobinstr()
+    if len(pl_bytes) != exp_len:
+        raise click.ClickException(f"Error while parsing '{hex_file.name}'")
+    return PayloadSection(name=section_name, payload=pl_bytes, attributes=attr)
 
 def load_seckey(key_pem):
-    if not key_pem:
-        return None
     data = key_pem.read()
-    if(sig.is_pem_encrypted(key_pem)):
-        password = getpass.getpass("Passphrase:")
-        return sig.seckey_from_pem(data, password)
+    if(sig.is_pem_encrypted(data)):
+        password = getpass.getpass("Passphrase:").encode('ascii')
+        try:
+            seckey = sig.seckey_from_pem(data, password)
+        except InvalidPassword:
+            raise click.ClickException("Passphrase invalid")
+        return seckey
     return sig.seckey_from_pem(data)
 
-def create_payload_section(hex_file):
-    pass
+def write_sections(upgrade_file, sections):
+    for sect in sections:
+        upgrade_file.write(sect.serialize())
+
+def load_sections(upgrade_file):
+    file_data = upgrade_file.read()
+    offset = 0
+    sections = []
+    while offset < len(file_data):
+        sect, offset = Section.deserialize(file_data, offset)
+        sections.append(sect)
+    return sections
+
+def do_sign(sections, seckey):
+    # Check sections
+    if not len(sections):
+        raise click.ClickException("Upgrade file is empty")
+    if not isinstance(sections[-1], SignatureSection):
+        sections.append(SignatureSection())
+    sig_section = sections[-1]
+    pl_sections = sections[:-1]
+    for sect in pl_sections:
+        if not isinstance(sect, PayloadSection):
+            err = "Unexpected section within payload sections"
+            raise click.ClickException(err)
+
+    # Sign payload sections and store signature in signature section
+    msg = make_signature_message(pl_sections)
+    fp = pubkey_fingerprint_from_seckey(seckey)
+    if fp in sig_section.signatures:
+        err = "Upgrade file is already signed using this key"
+        raise click.ClickException(err)
+    sig_section.signatures[fp] = sig.sign(msg, seckey)
+
 
 if __name__ == '__main__':
     cli()
