@@ -12,18 +12,24 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "ff.h"
 #include "bootloader.h"
-
-// Include FatFs header if needed
-#if !defined(BL_FFIND_CTX_DEFINED) || !defined(BL_FILE_DEFINED)
-  #include "ff.h"
-#endif
 
 /// Infinite time
 #define BL_FOREVER                      UINT32_MAX
 
 /// Type for absolute address in memory
 typedef uintptr_t bl_addr_t;
+/// Type for file size, unsigned
+typedef FSIZE_t bl_fsize_t;
+
+#if defined(FF_FS_EXFAT) && FF_FS_EXFAT
+  /// Type for file offset, signed
+  typedef int64_t bl_foffset_t;
+#else
+  /// Type for file offset, signed
+  typedef int32_t bl_foffset_t;
+#endif
 
 /// Identifiers of items in flash memory map
 typedef enum bl_flash_map_item_t_ {
@@ -51,26 +57,14 @@ typedef enum bl_alert_status_t_ {
   bl_alert_nstatuses        ///< Number of status items (not a status)
 } bl_alert_status_t;
 
-#ifndef BL_FFIND_CTX_DEFINED
-  /// Context of file searching functions
-  typedef struct bl_ffind_ctx_struct {
-    DIR dj;       ///< FatFs directory object
-    FILINFO fno;  ///< FatFs file information
-  } bl_ffind_ctx_t;
-  #define BL_FFIND_CTX_DEFINED
-#else
-  /// Context of file searching functions
-  typedef struct bl_ffind_ctx_struct bl_ffind_ctx_t;
-#endif // !BL_FFIND_CTX_DEFINED
+/// Context of file searching functions
+typedef struct bl_ffind_ctx_struct {
+  DIR dj;       ///< FatFs directory object
+  FILINFO fno;  ///< FatFs file information
+} bl_ffind_ctx_t;
 
-#ifndef BL_FILE_DEFINED
-  /// File descriptor
-  typedef FIL bl_file_t;
-  #define BL_FILE_DEFINED
-#else
-  /// File descriptor
-  typedef struct bl_file_struct bl_file_t;
-#endif // !BL_FILE_DEFINED
+/// File descriptor
+typedef FIL bl_file_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -100,6 +94,16 @@ bool blsys_flash_map_get_items(int items, ...);
 bool blsys_flash_erase(bl_addr_t addr, size_t size);
 
 /**
+ * Reads a block of data from flash memory
+ *
+ * @param addr  source address in flash memory
+ * @param buf   buffer receiving data
+ * @param len   number of bytes to read
+ * @return      true if successful
+ */
+bool blsys_flash_read(bl_addr_t addr, const uint8_t* buf, size_t len);
+
+/**
  * Writes a block of data to flash memory
  *
  * @param addr  destination address in flash memory
@@ -110,18 +114,37 @@ bool blsys_flash_erase(bl_addr_t addr, size_t size);
 bool blsys_flash_write(bl_addr_t addr, const uint8_t* buf, size_t len);
 
 /**
- * Checks if external storage is available for mounting
+ * Returns a number of media devices searched for upgrade files
  *
- * @return  true if storage is available to mount
+ * The bootloader uses returned value to scan all available devices sequentially
+ * searching for an upgrade file.
+ *
+ * @return  number of media devices
  */
-bool blsys_check_storage(void);
+uint32_t blsys_media_devices(void);
 
 /**
- * Mounts external storage where upgrade file is searched
+ * Checks if external media is available for mounting
  *
- * @return  true if successful
+ * @param device_idx  index of media device
+ * @return            true if media device is available to mount (e.g. inserted)
  */
-bool blsys_mount_storage(void);
+bool blsys_media_check(uint32_t device_idx);
+
+/**
+ * Mounts an external media device
+ *
+ * @param device_idx  index of media device
+ * @return            true if successful
+ */
+bool blsys_media_mount(uint32_t device_idx);
+
+/**
+ * Unmounts currently mounted external media device
+ *
+ * @return            true if successful
+ */
+void blsys_media_umount(void);
 
 /**
  * Find first file matching given pattern
@@ -159,10 +182,10 @@ void blsys_ffind_close(bl_ffind_ctx_t* ctx);
  *                  care
  * @param filename  name of the file to be opened
  * @param mode      string containing POSIX file access mode
- * @return          true if successful
+ * @return          file handle if successful, NULL if failed
  */
-bool blsys_fopen(bl_file_t* p_file, const char * filename, const char* mode);
-
+bl_file_t* blsys_fopen(bl_file_t* p_file, const char* filename,
+                       const char* mode);
 
 /**
  * Read block of data from file
@@ -170,15 +193,42 @@ bool blsys_fopen(bl_file_t* p_file, const char * filename, const char* mode);
  * @param ptr     pointer to output buffer, size at least (size*count) bytes
  * @param size    size in bytes of each element to be read
  * @param count   number of elements, each one with a size of size bytes
- * @param p_file  pointer to file descriptor
+ * @param p_file  file handle
  * @return        total number of elements successfully read
  */
 size_t blsys_fread(void* ptr, size_t size, size_t count, bl_file_t* p_file);
 
 /**
+ * Repositions file read/write pointer
+ *
+ * @param p_file  file handle
+ * @param offset  number of bytes to offset from origin
+ * @param origin  position used as reference for the offset, available options:
+ *                SEEK_SET, SEEK_CUR, SEEK_END
+ * @return        zero if successful
+ */
+int blsys_fseek(bl_file_t* p_file, bl_foffset_t offset, int origin);
+
+/**
+ * Returns the size of the file in bytes
+ *
+ * @param p_file  file handle
+ * @return        size of the file in bytes
+ */
+bl_fsize_t blsys_fsize(bl_file_t* p_file);
+
+/**
+ * Check end-of-file indicator
+ *
+ * @param p_file  file handle
+ * @return        a non-zero value if end-of-file is reached
+ */
+int blsys_feof(bl_file_t* p_file);
+
+/**
  * Closes the file
  *
- * @param p_file  pointer to file descriptor initialized with blsys_fopen()
+ * @param p_file  file handle
  */
 void blsys_fclose(bl_file_t* p_file);
 
