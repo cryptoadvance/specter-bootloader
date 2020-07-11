@@ -52,6 +52,21 @@
             "type": "shell",
             "command": "openocd -f board/stm32f469discovery.cfg -c \"init\" -c \"reset halt\" -c \"flash erase_sector 0 0 0\" -c \"shutdown\"",
             "problemMatcher": []
-        }
+        },
+        {
+            "label": "Debug build testbench",
+            "type": "shell",
+            "command": "make testbench DEBUG=1",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
     ]
 }

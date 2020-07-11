@@ -48,7 +48,7 @@
         {
             "name": "Debug",
             "cwd": "${workspaceRoot}",
-            "executable": "./build/stm32f469disco/bootloader/bootloader.elf",
+            "executable": "./build/stm32f469disco/bootloader/debug/bootloader.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "openocd",
@@ -56,6 +56,15 @@
             "configFiles": [
                 "board/stm32f469discovery.cfg"
             ],
-        }
+            "preLaunchTask": "Debug build"
+        },
+        {
+            "name": "Debug testbench",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/testbench/bootloader/debug/bootloader.out",
+            "args": ["app"],
+            "preLaunchTask": "Debug build testbench"
+        },
     ]
 }

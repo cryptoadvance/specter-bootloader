@@ -21,11 +21,16 @@ OPT = -Og
 LOC_ROOT := $(strip $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
 TARG_ROOT := $(strip $(shell dirname $(LOC_ROOT)))
 CMN_ROOT := $(PWD)
-BUILD_DIR = $(CMN_ROOT)/build/$(TARGET_PLATFORM)/$(TARGET)
+BUILD_DIR_ROOT = $(CMN_ROOT)/build/$(TARGET_PLATFORM)/$(TARGET)
 CMN_DIR = $(TARG_ROOT)/common
 DRV_DIR = $(TARG_ROOT)/drivers
 CORE_DIR = $(CMN_ROOT)/core
 LIB_DIR = $(CMN_ROOT)/lib
+ifeq ($(DEBUG), 1)
+BUILD_DIR = $(BUILD_DIR_ROOT)/debug
+else
+BUILD_DIR = $(BUILD_DIR_ROOT)/release
+endif
 
 ######################################
 # source
