@@ -56,7 +56,7 @@ static inline uint32_t swap(uint32_t x)
 #endif
 }
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__) && !defined(__clang__)
   /// Compiler optimisation attribute
   #define ATTR_OPT        __attribute__((optimize("O3")))
 #else

@@ -12,13 +12,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-
-/// Bootloader arguments stored in the Start-up Mailbox
-typedef struct __attribute__((packed)) bl_args_ {
-  uint32_t loaded_from;  ///< Address in Flash of active bootloader
-  uint32_t rsv[6];       ///< Reserved arguments, set to 0
-  uint32_t struct_crc;   ///< CRC of this structure using LE representation
-} bl_args_t;
+#include "bootloader.h"
 
 #ifdef __cplusplus
 extern "C" {

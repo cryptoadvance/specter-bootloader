@@ -12,7 +12,12 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "ff.h"
+#ifdef BL_NO_FATFS
+  // User provided configuration header for file system definitions
+  #include "bl_syscalls_fs.h"
+#else
+  #include "ff.h"
+#endif
 #include "bootloader.h"
 
 /// Infinite time
@@ -20,16 +25,31 @@
 
 /// Type for absolute address in memory
 typedef uintptr_t bl_addr_t;
-/// Type for file size, unsigned
-typedef FSIZE_t bl_fsize_t;
 
-#if defined(FF_FS_EXFAT) && FF_FS_EXFAT
-  /// Type for file offset, signed
-  typedef int64_t bl_foffset_t;
-#else
-  /// Type for file offset, signed
-  typedef int32_t bl_foffset_t;
-#endif
+// If FatFs support is disabled, it is expected that user provides a header,
+// named "bl_syscalls_fs.h" with definition of the following symbols:
+#ifndef BL_NO_FATFS
+  /// Type for file size, unsigned
+  typedef FSIZE_t bl_fsize_t;
+  /// File object
+  typedef FIL bl_file_obj_t;
+  /// File handle
+  typedef FIL* bl_file_t;
+
+  #if defined(FF_FS_EXFAT) && FF_FS_EXFAT
+    /// Type for file offset, signed
+    typedef int64_t bl_foffset_t;
+  #else
+    /// Type for file offset, signed
+    typedef int32_t bl_foffset_t;
+  #endif
+
+  /// Context of file searching functions
+  typedef struct bl_ffind_ctx_struct {
+    DIR dj;       ///< FatFs directory object
+    FILINFO fno;  ///< FatFs file information
+  } bl_ffind_ctx_t;
+#endif // !BL_NO_FATFS
 
 /// Identifiers of items in flash memory map
 typedef enum bl_flash_map_item_t_ {
@@ -57,18 +77,32 @@ typedef enum bl_alert_status_t_ {
   bl_alert_nstatuses        ///< Number of status items (not a status)
 } bl_alert_status_t;
 
-/// Context of file searching functions
-typedef struct bl_ffind_ctx_struct {
-  DIR dj;       ///< FatFs directory object
-  FILINFO fno;  ///< FatFs file information
-} bl_ffind_ctx_t;
-
-/// File descriptor
-typedef FIL bl_file_t;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * Initialisation of system and platform resources
+ *
+ * This function is guaranteed to be called by the Bootloader before any other
+ * system calls occur. Typically called once at start-up of Bootloader.
+ *
+ * @return true  if initialisation is successful
+ */
+bool blsys_init(void);
+
+/**
+ * De-initialisation of system and platform resources
+ *
+ * It is guaranteed that after calling this function none of system calls will
+ * occur. Typically called once before normal termination of Bootloader.
+ *
+ * This function is not called before non-returning functions, including
+ * blsys_alert() with BL_FOREVER argument and blsys_fatal_error(). It is on the
+ * responsibility of external code to release resources before the reboot if it
+ * is planned in these functions.
+ */
+void blsys_deinit(void);
 
 /**
  * Requests a number of items from flash memory map
@@ -178,14 +212,14 @@ void blsys_ffind_close(bl_ffind_ctx_t* ctx);
 /**
  * Opens a file
  *
- * @param p_file    pointer to pre-allocated file descriptor, contents are don't
+ * @param p_file    pointer to pre-allocated file object, contents are don't
  *                  care
  * @param filename  name of the file to be opened
  * @param mode      string containing POSIX file access mode
  * @return          file handle if successful, NULL if failed
  */
-bl_file_t* blsys_fopen(bl_file_t* p_file, const char* filename,
-                       const char* mode);
+bl_file_t blsys_fopen(bl_file_obj_t* p_file_obj, const char* filename,
+                      const char* mode);
 
 /**
  * Read block of data from file
@@ -196,41 +230,41 @@ bl_file_t* blsys_fopen(bl_file_t* p_file, const char* filename,
  * @param p_file  file handle
  * @return        total number of elements successfully read
  */
-size_t blsys_fread(void* ptr, size_t size, size_t count, bl_file_t* p_file);
+size_t blsys_fread(void* ptr, size_t size, size_t count, bl_file_t file);
 
 /**
  * Repositions file read/write pointer
  *
- * @param p_file  file handle
+ * @param file    file handle
  * @param offset  number of bytes to offset from origin
  * @param origin  position used as reference for the offset, available options:
  *                SEEK_SET, SEEK_CUR, SEEK_END
  * @return        zero if successful
  */
-int blsys_fseek(bl_file_t* p_file, bl_foffset_t offset, int origin);
+int blsys_fseek(bl_file_t file, bl_foffset_t offset, int origin);
 
 /**
  * Returns the size of the file in bytes
  *
- * @param p_file  file handle
- * @return        size of the file in bytes
+ * @param file  file handle
+ * @return      size of the file in bytes
  */
-bl_fsize_t blsys_fsize(bl_file_t* p_file);
+bl_fsize_t blsys_fsize(bl_file_t file);
 
 /**
  * Check end-of-file indicator
  *
- * @param p_file  file handle
- * @return        a non-zero value if end-of-file is reached
+ * @param file  file handle
+ * @return      a non-zero value if end-of-file is reached
  */
-int blsys_feof(bl_file_t* p_file);
+int blsys_feof(bl_file_t file);
 
 /**
  * Closes the file
  *
- * @param p_file  file handle
+ * @param file  file handle
  */
-void blsys_fclose(bl_file_t* p_file);
+void blsys_fclose(bl_file_t file);
 
 /**
  * Handles fatal error
@@ -248,11 +282,14 @@ void blsys_fatal_error(const char* text) BL_ATTRS((noreturn));
  * produce feedback to the user. This function is blocking and returns when
  * indication time passes or when indication is dismissed by user.
  *
+ * When argument time_ms is set to BL_FOREVER the function never returns.
+ * Typically in this case the indication is continued until reboot or until
+ * user confirmation, followed with reboot.
+ *
  * @param type     alert type
  * @param caption  alert caption, like "Downgrade Attempt"
  * @param text     alert text, like "Firmware upgrade stopped because..."
- * @param time_ms  indication time in milliseconds, BL_FOREVER means until user
- *                 confirmation or reset
+ * @param time_ms  indication time in milliseconds or BL_FOREVER
  * @param flags    flags, should be 0, reserved
  * @return         alert termination status
  */
