@@ -1,5 +1,5 @@
 # List of all supported platforms
-PLATFORMS = stm32f469disco
+PLATFORMS = stm32f469disco testbench
 
 # Select target platform by first argument
 FIRST_ARG = $(firstword $(MAKECMDGOALS))
@@ -23,3 +23,7 @@ clean:
 stm32f469disco:
 	@$(MAKE) -f $(BOOTLOADER_MAKEFILE) $(RUN_ARGS) TARGET_PLATFORM=$(TARGET_PLATFORM)
 #  @$(MAKE) -f $(STARTUP_MAKEFILE) $(RUN_ARGS) TARGET_PLATFORM=$(TARGET_PLATFORM)
+
+testbench:
+	$(shell echo Test Bench)
+	@$(MAKE) -f $(BOOTLOADER_MAKEFILE) $(RUN_ARGS) TARGET_PLATFORM=$(TARGET_PLATFORM)
