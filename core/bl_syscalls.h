@@ -74,7 +74,7 @@ typedef enum blsys_alert_type_t_ {
 typedef enum bl_alert_status_t_ {
   bl_alert_terminated = 0,  ///< Alert indication is terminated by timer
   bl_alert_dismissed,       ///< Alert is dismissed by user
-  bl_alert_nstatuses        ///< Number of status items (not a status)
+  bl_alert_nstatuses        ///< Number of alert status items (not a status)
 } bl_alert_status_t;
 
 #ifdef __cplusplus
@@ -135,7 +135,7 @@ bool blsys_flash_erase(bl_addr_t addr, size_t size);
  * @param len   number of bytes to read
  * @return      true if successful
  */
-bool blsys_flash_read(bl_addr_t addr, const uint8_t* buf, size_t len);
+bool blsys_flash_read(bl_addr_t addr, uint8_t* buf, size_t len);
 
 /**
  * Writes a block of data to flash memory
@@ -263,8 +263,9 @@ int blsys_feof(bl_file_t file);
  * Closes the file
  *
  * @param file  file handle
+ * @return      0 if successful, EOF otherwise
  */
-void blsys_fclose(bl_file_t file);
+int blsys_fclose(bl_file_t file);
 
 /**
  * Handles fatal error

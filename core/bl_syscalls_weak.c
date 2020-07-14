@@ -11,6 +11,9 @@
 #include "bootloader_private.h"
 #include "bl_syscalls.h"
 
+#ifdef WEAK
+  #undef WEAK
+#endif
 /// Adds "weak" attribute
 #define WEAK                            BL_ATTRS((weak))
 
@@ -29,7 +32,7 @@ WEAK bool blsys_flash_erase(bl_addr_t addr, size_t size) {
   return false;
 }
 
-WEAK bool blsys_flash_read(bl_addr_t addr, const uint8_t* buf, size_t len) {
+WEAK bool blsys_flash_read(bl_addr_t addr, uint8_t* buf, size_t len) {
   return false;
 }
 
@@ -38,15 +41,15 @@ WEAK bool blsys_flash_write(bl_addr_t addr, const uint8_t* buf, size_t len) {
 }
 
 WEAK uint32_t blsys_media_devices(void) {
-  return 0U;
+  return 1U;
 }
 
 WEAK bool blsys_media_check(uint32_t device_idx) {
-  return false;
+  return (0U == device_idx) ? true : false;
 }
 
 WEAK bool blsys_media_mount(uint32_t device_idx) {
-  return false;
+  return (0U == device_idx) ? true : false;
 }
 
 WEAK void blsys_media_umount(void) {
@@ -128,7 +131,7 @@ WEAK size_t blsys_fread(void* ptr, size_t size, size_t count,
   if(ptr && size && count && file) {
     UINT bytes_read = 0U;
     if(FR_OK == f_read(file, ptr, (UINT)(size * count), &bytes_read)) {
-      return (size_t)bytes_read;
+      return (size_t)bytes_read / size;
     }
   }
 #endif // !BL_NO_FATFS
@@ -176,17 +179,21 @@ WEAK int blsys_feof(bl_file_t file) {
   return -1;
 }
 
-WEAK void blsys_fclose(bl_file_t file) {
+WEAK int blsys_fclose(bl_file_t file) {
 #ifndef BL_NO_FATFS
   if(file) {
-    f_close(file);
+    if(FR_OK == f_close(file)) {
+      return 0; // Successful
+    }
   }
 #endif // !BL_NO_FATFS
+  return EOF;
 }
 
 BL_ATTRS((weak, noreturn)) void blsys_fatal_error(const char* text)  {
   blsys_alert(bl_alert_error, "Bootloader Error", text, BL_FOREVER, 0U);
   exit(1);
+  while(1); // Should not get there
 }
 
 WEAK bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,

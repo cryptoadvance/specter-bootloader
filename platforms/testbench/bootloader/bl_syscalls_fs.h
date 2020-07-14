@@ -8,11 +8,8 @@
 #ifndef BL_SYSCALLS_FS_H_INCLUDED
 #define BL_SYSCALLS_FS_H_INCLUDED
 
-#ifdef _WIN32
-  #include "dirent_win.h"
-#else
-  #include <dirent.h>
-#endif
+#include <dirent.h>
+#include <fnmatch.h>
 
 /// Type for file size, unsigned
 typedef unsigned long int bl_fsize_t;
@@ -25,7 +22,8 @@ typedef FILE* bl_file_t;
 
 /// Context of file searching functions
 typedef struct bl_ffind_ctx_struct {
-  DIR *dir; ///< POSIX directory object
+  char* pattern; ///< File pattern to look for
+  DIR *dir;      ///< POSIX directory object
 } bl_ffind_ctx_t;
 
 #endif // BL_SYSCALLS_FS_H_INCLUDED

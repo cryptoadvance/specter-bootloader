@@ -1,6 +1,6 @@
 /**
- * @file       bl_syscalls_weak.c
- * @brief      System abstraction layer for Bootloader core (weak functions)
+ * @file       bl_syscalls.c
+ * @brief      System call emulation for little-endian desktop computer
  * @author     Mike Tolkachev <contact@miketolkachev.dev>
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
  */
@@ -8,118 +8,214 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include "bootloader_private.h"
 #include "bl_syscalls.h"
 
-// TODO: remove
-#if 0
-DIR *dir;
-struct dirent *ent;
-if ((dir = opendir ("c:\\src\\")) != NULL) {
-  /* print all the files and directories within directory */
-  while ((ent = readdir (dir)) != NULL) {
-    printf ("%s\n", ent->d_name);
-  }
-  closedir (dir);
-} else {
-  /* could not open directory */
-  perror ("");
-  return EXIT_FAILURE;
-}
-#endif
+/// Name of file where contents of emulated flash memory is written
+#define FLASH_EMU_FILE                  "flash_dump.bin"
+/// Base address of emulated flash memory
+#define FLASH_EMU_BASE                  0x08000000U
+/// Size of emulated flash memory, 2 megabytes
+#define FLASH_EMU_SIZE                  (2U * 1024U * 1024U)
+/// Flags used with fnmatch() function to match file names
+#define FNMATCH_FLAGS                   (FNM_FILE_NAME | FNM_PERIOD)
+
+static const bl_addr_t flash_map[bl_flash_map_nitems] = {
+  [bl_flash_firmware_base]          = 0x08008000U,
+  [bl_flash_firmware_size]          = (96U + 1760U) * 1024U,
+  [bl_flash_bootloader_image_base]  = 0x081C0000U,
+  [bl_flash_bootloader_copy1_base]  = 0x081C0000U,
+  [bl_flash_bootloader_copy2_base]  = 0x081E0000U,
+  [bl_flash_bootloader_size]        = 128U * 1024U
+};
+
+/// Buffer in RAM used to emulate flash memory
+static uint8_t* flash_emu_buf = NULL;
 
 bool blsys_init(void) {
-  // TODO: implement
+  flash_emu_buf = malloc(FLASH_EMU_SIZE);
+  if(!flash_emu_buf) {
+    blsys_fatal_error("unable to allocate flash emulation buffer");
+  }
+  memset(flash_emu_buf, 0xFF, FLASH_EMU_SIZE);
   return true;
 }
 
 void blsys_deinit(void) {
-  // TODO: implement
+  if(flash_emu_buf) {
+    size_t written = 0U;
+    FILE* out_file = fopen(FLASH_EMU_FILE, "wb");
+    if(out_file) {
+      written = fwrite(flash_emu_buf, FLASH_EMU_SIZE, 1U, out_file);
+      fclose(out_file);
+    }
+    free(flash_emu_buf);
+    if(!written) {
+      blsys_fatal_error("unable to dump emulated flash memory to a file");
+    }
+  }
 }
 
 bool blsys_flash_map_get_items(int items, ...) {
-  // TODO: implement
+  va_list ap;
+
+  va_start(ap, items);
+  for(int i = 0; i < items; ++i) {
+    bl_flash_map_item_t item_id = va_arg(ap, bl_flash_map_item_t);
+    bl_addr_t* p_item           = va_arg(ap, bl_addr_t*);
+    if((int)item_id < 0 || (int)item_id >= bl_flash_map_nitems || !p_item) {
+      return false;
+    }
+    *p_item = flash_map[item_id];
+  }
+  va_end(ap);
+
+  return true;
+}
+
+/**
+ * Checks if area in flash memory falls in valid address range
+ *
+ * @param addr  starting address
+ * @param size  area size
+ * @return      true if successful
+ */
+static bool check_flash_area(bl_addr_t addr, size_t size) {
+  if( addr >= FLASH_EMU_BASE && addr <= SIZE_MAX - size &&
+      addr + size <= FLASH_EMU_BASE + FLASH_EMU_SIZE ) {
+    return true;
+  }
   return false;
 }
 
 bool blsys_flash_erase(bl_addr_t addr, size_t size) {
-  // TODO: implement
+  if(flash_emu_buf && check_flash_area(addr, size)) {
+    size_t offset = addr - FLASH_EMU_BASE;
+    memset(flash_emu_buf + offset, 0, size);
+    return true;
+  }
   return false;
 }
 
-bool blsys_flash_read(bl_addr_t addr, const uint8_t* buf, size_t len) {
-  // TODO: implement
+bool blsys_flash_read(bl_addr_t addr, uint8_t* buf, size_t len) {
+  if(flash_emu_buf && buf && check_flash_area(addr, len)) {
+    size_t offset = addr - FLASH_EMU_BASE;
+    memcpy(buf, flash_emu_buf + offset, len);
+    return true;
+  }
   return false;
 }
 
 bool blsys_flash_write(bl_addr_t addr, const uint8_t* buf, size_t len) {
-  // TODO: implement
+  if(flash_emu_buf && buf && check_flash_area(addr, len)) {
+    size_t offset = addr - FLASH_EMU_BASE;
+    memcpy(flash_emu_buf + offset, buf, len);
+    return true;
+  }
   return false;
 }
 
 uint32_t blsys_media_devices(void) {
-  // TODO: implement
-  return 0U;
+  return 1U;
 }
 
 bool blsys_media_check(uint32_t device_idx) {
-  // TODO: implement
-  return false;
+  return (0U == device_idx) ? true : false;
 }
 
 bool blsys_media_mount(uint32_t device_idx) {
-  // TODO: implement
-  return false;
+  return (0U == device_idx) ? true : false;
 }
 
 void blsys_media_umount(void) {
-  // TODO: implement
 }
 
 const char* blsys_ffind_first(bl_ffind_ctx_t* ctx, const char* path,
                               const char* pattern) {
-  // TODO: implement
+  if(ctx && path && pattern) {
+    ctx->pattern = strdup(pattern);
+    ctx->dir = opendir(path);
+    if(ctx->pattern && ctx->dir) {
+      struct dirent* ent;
+      do {
+        ent = readdir(ctx->dir);
+        if(ent) {
+          if(0 == fnmatch(pattern, ent->d_name, FNMATCH_FLAGS)) {
+            return ent->d_name;
+          }
+        }
+      } while(ent);
+    }
+  }
   return NULL;
 }
 
 const char* blsys_ffind_next(bl_ffind_ctx_t* ctx) {
-  // TODO: implement
+  if(ctx && ctx->pattern && ctx->dir) {
+    struct dirent* ent;
+    do {
+      ent = readdir(ctx->dir);
+      if(ent) {
+        if(0 == fnmatch(ctx->pattern, ent->d_name, FNMATCH_FLAGS)) {
+          return ent->d_name;
+        }
+      }
+    } while(ent);
+  }
   return NULL;
 }
 
 void blsys_ffind_close(bl_ffind_ctx_t* ctx) {
-  // TODO: implement
+  if(ctx) {
+    if(ctx->pattern) {
+      free(ctx->pattern);
+      ctx->pattern = NULL;
+    }
+    if(ctx->dir) {
+      closedir(ctx->dir);
+      ctx->dir = NULL;
+    }
+  }
 }
 
 bl_file_t blsys_fopen(bl_file_obj_t* p_file_obj, const char* filename,
                       const char* mode) {
-  // TODO: implement
-  return NULL;
+  (void)p_file_obj;
+  return fopen(filename, mode);
 }
 
 size_t blsys_fread(void* ptr, size_t size, size_t count,
                    bl_file_t file) {
-  // TODO: implement
-  return 0U;
+  return fread(ptr, size, count, file);
 }
 
 int blsys_fseek(bl_file_t file, bl_foffset_t offset, int origin) {
-  // TODO: implement
-  return -1; // Failed
+  return fseek(file, offset, origin);
 }
 
 bl_fsize_t blsys_fsize(bl_file_t file) {
-  // TODO: implement
-  return 0U;
+  bl_fsize_t file_size = 0U;
+
+  long curr_pos = ftell(file);
+  if(curr_pos >= 0) {
+    if(fseek(file, 0L, SEEK_END)) {
+      long end_pos = ftell(file);
+      if(end_pos >= 0) {
+        file_size = (bl_fsize_t)end_pos;
+      }
+    }
+    fseek(file, curr_pos, SEEK_SET);
+  }
+  return file_size;
 }
 
 int blsys_feof(bl_file_t file) {
-  // TODO: implement
-  return -1;
+  return feof(file);
 }
 
-void blsys_fclose(bl_file_t file) {
-  // TODO: implement
+int blsys_fclose(bl_file_t file) {
+  return fclose(file);
 }
 
 bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,
