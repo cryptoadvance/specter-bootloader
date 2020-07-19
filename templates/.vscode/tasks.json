@@ -68,5 +68,20 @@
                 "isDefault": true
             }
         },
+        {
+            "label": "Debug build unit tests",
+            "type": "shell",
+            "command": "make unit_tests DEBUG=1",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
     ]
 }

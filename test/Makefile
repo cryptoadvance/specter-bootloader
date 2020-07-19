@@ -1,0 +1,96 @@
+######################################
+# utilities
+######################################
+MKDIR_P = mkdir -p
+
+######################################
+# target
+######################################
+TARGET = test_runner
+
+# Paths
+LOC_ROOT := $(strip $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
+CMN_ROOT := $(PWD)
+BUILD_DIR_ROOT = $(CMN_ROOT)/build/$(TARGET)
+CORE_DIR = $(CMN_ROOT)/core
+LIB_DIR = $(CMN_ROOT)/lib
+ifeq ($(DEBUG), 1)
+BUILD_DIR = $(BUILD_DIR_ROOT)/debug
+else
+BUILD_DIR = $(BUILD_DIR_ROOT)/release
+endif
+
+######################################
+# source
+######################################
+# C++ sources
+CPP_SOURCES  = $(shell find $(LOC_ROOT) -name *.cpp)
+# Bootloader core: include only files from /secp256k1_add
+C_SOURCES += $(shell find $(CORE_DIR)/secp256k1_add -name *.c)
+# CRC32
+C_SOURCES += $(shell find $(LIB_DIR)/crc32 -name *.c)
+# Crypto library
+C_SOURCES += $(shell find $(LIB_DIR)/crypto -name *.c)
+# libsecp256k1
+C_SOURCES += $(addprefix $(LIB_DIR)/secp256k1/src/,\
+	secp256k1.c \
+	)
+
+# C includes
+C_INCLUDES =  \
+-I$(LOC_ROOT) \
+-I$(LOC_ROOT)/catch2 \
+-I$(CORE_DIR) \
+-I$(CORE_DIR)/config \
+-I$(CORE_DIR)/secp256k1_add \
+-I$(LIB_DIR)/crc32 \
+-I$(LIB_DIR)/crypto \
+-I$(LIB_DIR)/secp256k1 \
+-I$(LIB_DIR)/secp256k1/src
+
+# C defines
+C_DEFS =  \
+-DBL_NO_FATFS \
+-DHAVE_CONFIG_H \
+-DSECP256K1_BUILD \
+-D__BYTE_ORDER=1234 \
+-DCRC32_USE_LOOKUP_TABLE_SLICING_BY_8 \
+-Wno-unused-function
+
+OBJS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
+vpath %.c $(sort $(dir $(C_SOURCES)))
+
+OBJS += $(addprefix $(BUILD_DIR)/,$(notdir $(CPP_SOURCES:.cpp=.o)))
+vpath %.cpp $(sort $(dir $(CPP_SOURCES)))
+
+DEPS := $(OBJS:.o=.d)
+
+CFLAGS = $(C_INCLUDES) -MMD -MP -Werror $(C_DEFS)
+CPPFLAGS = -std=c++11
+LDFLAGS ?= -lstdc++
+
+ifeq ($(DEBUG), 1)
+CFLAGS += -g
+LDFLAGS += -g
+endif
+
+$(BUILD_DIR)/$(TARGET).out: $(OBJS) Makefile
+	$(CC) $(OBJS) -o $@ $(LDFLAGS)
+
+$(BUILD_DIR)/%.o: %.c Makefile
+	$(MKDIR_P) $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.o: %.cpp Makefile
+	$(MKDIR_P) $(dir $@)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+.PHONY: clean test
+
+test: $(BUILD_DIR)/$(TARGET).out
+	@$(BUILD_DIR)/$(TARGET).out
+
+clean:
+	$(RM) -r $(BUILD_DIR)
+
+-include $(DEPS)

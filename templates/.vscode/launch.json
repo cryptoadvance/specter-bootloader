@@ -63,8 +63,14 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/testbench/bootloader/debug/bootloader.out",
-            "args": ["app"],
             "preLaunchTask": "Debug build testbench"
+        },
+        {
+            "name": "Debug unit tests",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test_runner/debug/test_runner.out",
+            "preLaunchTask": "Debug build unit tests"
         },
     ]
 }

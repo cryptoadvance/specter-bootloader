@@ -15,10 +15,16 @@ ifdef TARGET_PLATFORM
   $(eval $(RUN_ARGS):;@:)
 endif
 
-.PHONY: $(PLATFORMS) clean
+.PHONY: $(PLATFORMS) clean test unit_tests
 
 clean:
 	-rm -fR build
+
+test:
+	@$(MAKE) -f test/Makefile test
+
+unit_tests:
+	@$(MAKE) -f test/Makefile
 
 stm32f469disco:
 	@$(MAKE) -f $(BOOTLOADER_MAKEFILE) $(RUN_ARGS) TARGET_PLATFORM=$(TARGET_PLATFORM)
