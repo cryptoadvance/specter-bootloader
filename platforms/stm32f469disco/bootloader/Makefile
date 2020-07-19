@@ -150,7 +150,7 @@ CFLAGS += -g -gdwarf-2 -DDEBUG=1
 endif
 
 # Generate dependency information
-CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
+CFLAGS += -MMD -MP -Werror -MF"$(@:%.o=%.d)"
 
 
 #######################################

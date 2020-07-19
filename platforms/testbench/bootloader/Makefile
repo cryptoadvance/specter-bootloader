@@ -62,7 +62,7 @@ vpath %.c $(sort $(dir $(C_SOURCES)))
 
 DEPS := $(OBJS:.o=.d)
 
-CFLAGS = $(C_INCLUDES) -MMD -MP $(C_DEFS)
+CFLAGS = $(C_INCLUDES) -MMD -MP -Werror $(C_DEFS)
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g
