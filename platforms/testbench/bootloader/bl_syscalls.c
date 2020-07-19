@@ -21,6 +21,7 @@
 /// Flags used with fnmatch() function to match file names
 #define FNMATCH_FLAGS                   (FNM_FILE_NAME | FNM_PERIOD)
 
+/// Flash memory map
 static const bl_addr_t flash_map[bl_flash_map_nitems] = {
   [bl_flash_firmware_base]          = 0x08008000U,
   [bl_flash_firmware_size]          = (96U + 1760U) * 1024U,
@@ -30,10 +31,20 @@ static const bl_addr_t flash_map[bl_flash_map_nitems] = {
   [bl_flash_bootloader_size]        = 128U * 1024U
 };
 
+/// Maps alert type to string
+static const char* alert_type_str[bl_nalerts] = {
+  [bl_alert_info]    = "INFO",
+  [bl_alert_warning] = "WARNING",
+  [bl_alert_error]   = "ERROR"
+};
+
 /// Buffer in RAM used to emulate flash memory
 static uint8_t* flash_emu_buf = NULL;
+/// Printed characters of the progress message
+static int progress_n_chr = -1;
 
 bool blsys_init(void) {
+  progress_n_chr = -1;
   flash_emu_buf = malloc(FLASH_EMU_SIZE);
   if(!flash_emu_buf) {
     blsys_fatal_error("unable to allocate flash emulation buffer");
@@ -190,6 +201,10 @@ size_t blsys_fread(void* ptr, size_t size, size_t count,
   return fread(ptr, size, count, file);
 }
 
+bl_foffset_t blsys_ftell(bl_file_t file) {
+  return (bl_foffset_t)ftell(file);
+}
+
 int blsys_fseek(bl_file_t file, bl_foffset_t offset, int origin) {
   return fseek(file, offset, origin);
 }
@@ -219,13 +234,67 @@ int blsys_fclose(bl_file_t file) {
 }
 
 bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,
-                                   const char* text, uint32_t time_ms,
-                                   uint32_t flags) {
-  // TODO: implement
+                              const char* text, uint32_t time_ms,
+                              uint32_t flags) {
+  bool arg_error = true;
+  if((int)type >= 0 && (int)type < bl_nalerts && caption && text) {
+    const char* alert = alert_type_str[type] ? alert_type_str[type] : "UNKNOWN";
+    arg_error = false;
+    const size_t buf_size = strlen(caption) + strlen(text) + 100U;
+    char* str_buf = malloc(buf_size);
+    if(str_buf) {
+      int n_chr = snprintf( str_buf, buf_size, "(%s) %s: %s", alert, caption,
+                            text );
+      if(n_chr > 0) {
+        printf("\n%s", str_buf);
+        progress_n_chr = -1;
+      }
+      free(str_buf);
+    }
+  }
+
+  if( arg_error || (BL_FOREVER == time_ms) ) {
+    blsys_deinit();
+    printf("\nBootloader terminated");
+    exit(-1);
+  }
   return bl_alert_terminated;
 }
 
+/**
+ * Erases a number of characters from console using backspace
+ *
+ * @param n_chr  number of character to erase, no-op if < 1
+ */
+static void console_erase(int n_chr) {
+  if(n_chr > 0) {
+    char* str_buf = malloc(3U * n_chr + 1U);
+    if(str_buf) {
+      memset(str_buf,              '\b', n_chr);
+      memset(str_buf + n_chr,      ' ',  n_chr);
+      memset(str_buf + 2U * n_chr, '\b', n_chr);
+      str_buf[3U * n_chr] = '\0';
+      printf("%s", str_buf);
+      free(str_buf);
+    }
+  }
+}
+
 void blsys_progress(const char* caption, const char* operation,
-                         uint32_t n_total, uint32_t complete) {
-  // TODO: implement
+                    uint32_t n_total, uint32_t complete) {
+  if(caption && operation) {
+    const size_t buf_size = strlen(caption) + strlen(operation) + 100U;
+    char* str_buf = malloc(buf_size);
+    if(str_buf) {
+      uint64_t progress = (uint64_t)complete * 100U / n_total;
+      int n_chr = snprintf( str_buf, buf_size, "%s: %s - %3u%%", caption,
+                            operation, (unsigned int)progress );
+      if(n_chr > 0) {
+        console_erase(progress_n_chr);
+        printf(progress_n_chr > 0 ? "%s" : "\n%s", str_buf);
+        progress_n_chr = n_chr;
+      }
+      free(str_buf);
+    }
+  }
 }

@@ -138,22 +138,33 @@ WEAK size_t blsys_fread(void* ptr, size_t size, size_t count,
   return 0U;
 }
 
+WEAK bl_foffset_t blsys_ftell(bl_file_t file) {
+#ifndef BL_NO_FATFS
+  if(file) {
+    return (bl_foffset_t)f_tell(file);
+  }
+#endif // !BL_NO_FATFS
+  return -1;
+}
+
 WEAK int blsys_fseek(bl_file_t file, bl_foffset_t offset, int origin) {
 #ifndef BL_NO_FATFS
-  bl_foffset_t new_pos = -1;
+  if(file) {
+    bl_foffset_t new_pos = -1;
 
-  if(SEEK_SET == origin) {
-    new_pos = offset;
-  } else if(SEEK_CUR == origin) {
-    new_pos = (bl_foffset_t)f_tell(file) + offset;
-  } else if(SEEK_END == origin) {
-    new_pos = (bl_foffset_t)f_size(file) + offset;
-  }
+    if(SEEK_SET == origin) {
+      new_pos = offset;
+    } else if(SEEK_CUR == origin) {
+      new_pos = (bl_foffset_t)f_tell(file) + offset;
+    } else if(SEEK_END == origin) {
+      new_pos = (bl_foffset_t)f_size(file) + offset;
+    }
 
-  if(new_pos >= 0) {
-    if(FR_OK == f_lseek(file, (FSIZE_t)new_pos)) {
-      if((bl_foffset_t)f_tell(file) == new_pos) {
-        return 0; // Successful
+    if(new_pos >= 0) {
+      if(FR_OK == f_lseek(file, (FSIZE_t)new_pos)) {
+        if((bl_foffset_t)f_tell(file) == new_pos) {
+          return 0; // Successful
+        }
       }
     }
   }

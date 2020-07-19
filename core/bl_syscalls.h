@@ -12,6 +12,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 #ifdef BL_NO_FATFS
   // User provided configuration header for file system definitions
   #include "bl_syscalls_fs.h"
@@ -231,6 +232,14 @@ bl_file_t blsys_fopen(bl_file_obj_t* p_file_obj, const char* filename,
  * @return        total number of elements successfully read
  */
 size_t blsys_fread(void* ptr, size_t size, size_t count, bl_file_t file);
+
+/**
+ * Returns the current file read/write pointer
+ *
+ * @param file  file handle
+ * @return      current value of read/write pointer if successful, -1 if failed
+ */
+bl_foffset_t blsys_ftell(bl_file_t file);
 
 /**
  * Repositions file read/write pointer
