@@ -1,6 +1,6 @@
 /**
- * @file       bl_syscalls.c
- * @brief      System call emulation for little-endian desktop computer
+ * @file       bl_syscalls_test.c
+ * @brief      System call emulation for unit tests
  * @author     Mike Tolkachev <contact@miketolkachev.dev>
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
  */
@@ -12,8 +12,6 @@
 #include "bootloader_private.h"
 #include "bl_syscalls.h"
 
-/// Name of file where contents of emulated flash memory is written
-#define FLASH_EMU_FILE                  "flash_dump.bin"
 /// Base address of emulated flash memory
 #define FLASH_EMU_BASE                  0x08000000U
 /// Size of emulated flash memory, 2 megabytes
@@ -40,12 +38,9 @@ static const char* alert_type_str[bl_nalerts] = {
 
 /// Buffer in RAM used to emulate flash memory
 static uint8_t* flash_emu_buf = NULL;
-/// Printed characters of the progress message
-static int progress_n_chr = -1;
 
 bool blsys_init(void) {
-  progress_n_chr = -1;
-  flash_emu_buf = malloc(FLASH_EMU_SIZE);
+  flash_emu_buf = (uint8_t*)malloc(FLASH_EMU_SIZE);
   if(!flash_emu_buf) {
     blsys_fatal_error("unable to allocate flash emulation buffer");
   }
@@ -55,16 +50,7 @@ bool blsys_init(void) {
 
 void blsys_deinit(void) {
   if(flash_emu_buf) {
-    size_t written = 0U;
-    FILE* out_file = fopen(FLASH_EMU_FILE, "wb");
-    if(out_file) {
-      written = fwrite(flash_emu_buf, FLASH_EMU_SIZE, 1U, out_file);
-      fclose(out_file);
-    }
     free(flash_emu_buf);
-    if(!written) {
-      blsys_fatal_error("unable to dump emulated flash memory to a file");
-    }
   }
 }
 
@@ -236,65 +222,9 @@ int blsys_fclose(bl_file_t file) {
 bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,
                               const char* text, uint32_t time_ms,
                               uint32_t flags) {
-  bool arg_error = true;
-  if((int)type >= 0 && (int)type < bl_nalerts && caption && text) {
-    const char* alert = alert_type_str[type] ? alert_type_str[type] : "UNKNOWN";
-    arg_error = false;
-    const size_t buf_size = strlen(caption) + strlen(text) + 100U;
-    char* str_buf = malloc(buf_size);
-    if(str_buf) {
-      int n_chr = snprintf( str_buf, buf_size, "(%s) %s: %s", alert, caption,
-                            text );
-      if(n_chr > 0) {
-        printf("\n%s", str_buf);
-        progress_n_chr = -1;
-      }
-      free(str_buf);
-    }
-  }
-
-  if( arg_error || (BL_FOREVER == time_ms) ) {
-    blsys_deinit();
-    printf("\nBootloader terminated");
-    exit(-1);
-  }
   return bl_alert_terminated;
-}
-
-/**
- * Erases a number of characters from console using backspace
- *
- * @param n_chr  number of character to erase, no-op if < 1
- */
-static void console_erase(int n_chr) {
-  if(n_chr > 0) {
-    char* str_buf = malloc(3U * n_chr + 1U);
-    if(str_buf) {
-      memset(str_buf,              '\b', n_chr);
-      memset(str_buf + n_chr,      ' ',  n_chr);
-      memset(str_buf + 2U * n_chr, '\b', n_chr);
-      str_buf[3U * n_chr] = '\0';
-      printf("%s", str_buf);
-      free(str_buf);
-    }
-  }
 }
 
 void blsys_progress(const char* caption, const char* operation,
                     uint32_t n_total, uint32_t complete) {
-  if(caption && operation) {
-    const size_t buf_size = strlen(caption) + strlen(operation) + 100U;
-    char* str_buf = malloc(buf_size);
-    if(str_buf) {
-      uint64_t progress = (uint64_t)complete * 100U / n_total;
-      int n_chr = snprintf( str_buf, buf_size, "%s: %s - %3u%%", caption,
-                            operation, (unsigned int)progress );
-      if(n_chr > 0) {
-        console_erase(progress_n_chr);
-        printf(progress_n_chr > 0 ? "%s" : "\n%s", str_buf);
-        progress_n_chr = n_chr;
-      }
-      free(str_buf);
-    }
-  }
 }

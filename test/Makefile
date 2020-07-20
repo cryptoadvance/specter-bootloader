@@ -66,7 +66,7 @@ vpath %.cpp $(sort $(dir $(CPP_SOURCES)))
 DEPS := $(OBJS:.o=.d)
 
 CFLAGS = $(C_INCLUDES) -MMD -MP -Werror $(C_DEFS)
-CPPFLAGS = -std=c++11
+CPPFLAGS = -std=c++14
 LDFLAGS ?= -lstdc++
 
 ifeq ($(DEBUG), 1)

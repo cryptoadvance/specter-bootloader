@@ -109,9 +109,9 @@ void blsys_deinit(void);
  * Requests a number of items from flash memory map
  *
  * For each of requested items, this function takes a pair of arguments:
- * (bl_flash_map_item_t item_id, bl_addr_t* p_item). Where item_id is an
- * identifier and p_item points to a variable filled on return (if item is
- * available).
+ * (int item_id, bl_addr_t* p_item). Where item_id is an item identifier which
+ * should be one of bl_flash_map_item_t values, and p_item points to a variable
+ * filled on return (if item is available).
  *
  * @param items  number of items to get
  * @param ...    pair of arguments (item_id, p_item) for each requested item
