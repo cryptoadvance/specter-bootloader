@@ -1,3 +1,10 @@
+/**
+ * @file       test_bl_section.cpp
+ * @brief      Unit tests for functions working with Bootloader sections
+ * @author     Mike Tolkachev <contact@miketolkachev.dev>
+ * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
+ */
+
 #include "catch2/catch.hpp"
 #include "crc32.h"
 
@@ -60,9 +67,11 @@ class flash_buf {
                    uint32_t pl_size = sizeof(ref_payload)) {
     if (!flash_emu_buf) {
       flash_emu_buf = new uint8_t[pl_size];
+      flash_emu_size = pl_size;
       if (pl_buf) {
         memcpy(flash_emu_buf, pl_buf, pl_size);
-      } else {
+      }
+      else {
         memset(flash_emu_buf, 0xFF, pl_size);
       }
     } else {
@@ -75,6 +84,7 @@ class flash_buf {
     if (flash_emu_buf) {
       delete flash_emu_buf;
       flash_emu_buf = NULL;
+      flash_emu_size = 0U;
     }
   }
 
@@ -470,8 +480,7 @@ TEST_CASE("Validate payload from flash") {
 
   SECTION("valid, long payload") {
     // Generate payload buffer
-    const size_t pl_size = FLASH_EMU_SIZE;
-    REQUIRE(FLASH_EMU_SIZE <= BL_PAYLOAD_SIZE_MAX);
+    const size_t pl_size = BL_PAYLOAD_SIZE_MAX;
     auto flash = flash_buf(NULL, pl_size);
     for (size_t i = 0; i < pl_size; ++i) {
       flash[i] = (uint8_t)(i & 0xFFU);
@@ -492,8 +501,7 @@ TEST_CASE("Validate payload from flash") {
 
   SECTION("invalid, corrupted payload") {
     // Generate payload buffer
-    const size_t pl_size = FLASH_EMU_SIZE;
-    REQUIRE(FLASH_EMU_SIZE <= BL_PAYLOAD_SIZE_MAX);
+    const size_t pl_size = BL_PAYLOAD_SIZE_MAX;
     auto flash = flash_buf(NULL, pl_size);
     for (size_t i = 0; i < pl_size; ++i) {
       flash[i] = (uint8_t)(i & 0xFFU);

@@ -14,8 +14,6 @@
 
 /// Base address of emulated flash memory
 #define FLASH_EMU_BASE 0x08000000U
-/// Size of emulated flash memory, 2 megabytes
-#define FLASH_EMU_SIZE (2U * 1024U * 1024U)
 /// Flags used with fnmatch() function to match file names
 #define FNMATCH_FLAGS (FNM_FILE_NAME | FNM_PERIOD)
 
@@ -40,13 +38,15 @@ static const char* alert_type_str[bl_nalerts] = {
 
 /// Buffer in RAM used to emulate flash memory
 static uint8_t* flash_emu_buf = NULL;
+/// Size of currently allocated flash emulation buffer
+static size_t flash_emu_size = 0U;
 
 bool blsys_init(void) {
-  flash_emu_buf = (uint8_t*)malloc(FLASH_EMU_SIZE);
+  flash_emu_buf = (uint8_t*)malloc(flash_emu_size);
   if (!flash_emu_buf) {
     blsys_fatal_error("unable to allocate flash emulation buffer");
   }
-  memset(flash_emu_buf, 0xFF, FLASH_EMU_SIZE);
+  memset(flash_emu_buf, 0xFF, flash_emu_size);
   return true;
 }
 
@@ -82,7 +82,7 @@ bool blsys_flash_map_get_items(int items, ...) {
  */
 static bool check_flash_area(bl_addr_t addr, size_t size) {
   if (addr >= FLASH_EMU_BASE && addr <= SIZE_MAX - size &&
-      addr + size <= FLASH_EMU_BASE + FLASH_EMU_SIZE) {
+      addr + size <= FLASH_EMU_BASE + flash_emu_size) {
     return true;
   }
   return false;
