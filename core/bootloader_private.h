@@ -24,10 +24,10 @@
  * @return      true if strings are equal
  */
 static inline bool bl_streq(const char* stra, const char* strb) {
-  if(stra && strb) {
+  if (stra && strb) {
     return 0 == strcmp(stra, strb);
   }
   return false;
 }
 
-#endif // BOOTLOADER_PRIVATE_H_INCLUDED
+#endif  // BOOTLOADER_PRIVATE_H_INCLUDED

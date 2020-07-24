@@ -12,7 +12,7 @@
 #include "main.h"
 
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 
 void NMI_Handler(void);
@@ -32,4 +32,4 @@ void SDIO_IRQHandler(void);
 }
 #endif
 
-#endif // STM32F4XX_IT_H_INCLUDED
+#endif  // STM32F4XX_IT_H_INCLUDED

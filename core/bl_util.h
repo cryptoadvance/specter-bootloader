@@ -28,7 +28,7 @@ extern "C" {
 bool bl_memvcmp(const void* ptr, int value, size_t num);
 
 #ifdef __cplusplus
-} // extern "C"
+}  // extern "C"
 #endif
 
-#endif // BL_UTIL_H_INCLUDED
+#endif  // BL_UTIL_H_INCLUDED

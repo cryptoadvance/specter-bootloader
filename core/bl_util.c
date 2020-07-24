@@ -8,11 +8,11 @@
 #include "bl_util.h"
 
 bool bl_memvcmp(const void* ptr, int value, size_t num) {
-  if(ptr && num) {
+  if (ptr && num) {
     const uint8_t* p_mem = (const uint8_t*)ptr;
     size_t rm_bytes = num;
-    while(rm_bytes--) {
-      if(*p_mem++ != value) {
+    while (rm_bytes--) {
+      if (*p_mem++ != value) {
         return false;
       }
     }

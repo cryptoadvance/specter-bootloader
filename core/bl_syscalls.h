@@ -14,15 +14,15 @@
 #include <stdbool.h>
 #include <stdio.h>
 #ifdef BL_NO_FATFS
-  // User provided configuration header for file system definitions
-  #include "bl_syscalls_fs.h"
+// User provided configuration header for file system definitions
+#include "bl_syscalls_fs.h"
 #else
-  #include "ff.h"
+#include "ff.h"
 #endif
 #include "bootloader.h"
 
 /// Infinite time
-#define BL_FOREVER                      UINT32_MAX
+#define BL_FOREVER UINT32_MAX
 
 /// Type for absolute address in memory
 typedef uintptr_t bl_addr_t;
@@ -30,27 +30,27 @@ typedef uintptr_t bl_addr_t;
 // If FatFs support is disabled, it is expected that user provides a header,
 // named "bl_syscalls_fs.h" with definition of the following symbols:
 #ifndef BL_NO_FATFS
-  /// Type for file size, unsigned
-  typedef FSIZE_t bl_fsize_t;
-  /// File object
-  typedef FIL bl_file_obj_t;
-  /// File handle
-  typedef FIL* bl_file_t;
+/// Type for file size, unsigned
+typedef FSIZE_t bl_fsize_t;
+/// File object
+typedef FIL bl_file_obj_t;
+/// File handle
+typedef FIL* bl_file_t;
 
-  #if defined(FF_FS_EXFAT) && FF_FS_EXFAT
-    /// Type for file offset, signed
-    typedef int64_t bl_foffset_t;
-  #else
-    /// Type for file offset, signed
-    typedef int32_t bl_foffset_t;
-  #endif
+#if defined(FF_FS_EXFAT) && FF_FS_EXFAT
+/// Type for file offset, signed
+typedef int64_t bl_foffset_t;
+#else
+/// Type for file offset, signed
+typedef int32_t bl_foffset_t;
+#endif
 
-  /// Context of file searching functions
-  typedef struct bl_ffind_ctx_struct {
-    DIR dj;       ///< FatFs directory object
-    FILINFO fno;  ///< FatFs file information
-  } bl_ffind_ctx_t;
-#endif // !BL_NO_FATFS
+/// Context of file searching functions
+typedef struct bl_ffind_ctx_struct {
+  DIR dj;       ///< FatFs directory object
+  FILINFO fno;  ///< FatFs file information
+} bl_ffind_ctx_t;
+#endif  // !BL_NO_FATFS
 
 /// Identifiers of items in flash memory map
 typedef enum bl_flash_map_item_t_ {
@@ -319,7 +319,7 @@ void blsys_progress(const char* caption, const char* operation,
                     uint32_t n_total, uint32_t complete);
 
 #ifdef __cplusplus
-} // extern "C"
+}  // extern "C"
 #endif
 
-#endif // BL_SYSCALLS_H_INCLUDED
+#endif  // BL_SYSCALLS_H_INCLUDED

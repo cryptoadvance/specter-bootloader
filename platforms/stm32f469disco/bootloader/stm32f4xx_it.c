@@ -19,8 +19,7 @@ extern SD_HandleTypeDef uSdHandle;
  * @param  None
  * @return None
  */
-void NMI_Handler(void) {
-}
+void NMI_Handler(void) {}
 
 /**
  * @brief  This function handles Hard Fault exception.
@@ -29,7 +28,7 @@ void NMI_Handler(void) {
  */
 void HardFault_Handler(void) {
   // Go to infinite loop when Hard Fault exception occurs
-  while(1) {
+  while (1) {
   }
 }
 
@@ -40,7 +39,7 @@ void HardFault_Handler(void) {
  */
 void MemManage_Handler(void) {
   // Go to infinite loop when Memory Manage exception occurs
-  while(1) {
+  while (1) {
   }
 }
 
@@ -49,10 +48,9 @@ void MemManage_Handler(void) {
  * @param  None
  * @return None
  */
-void BusFault_Handler(void)
-{
+void BusFault_Handler(void) {
   // Go to infinite loop when Bus Fault exception occurs
-  while(1) {
+  while (1) {
   }
 }
 
@@ -61,10 +59,9 @@ void BusFault_Handler(void)
  * @param  None
  * @return None
  */
-void UsageFault_Handler(void)
-{
+void UsageFault_Handler(void) {
   // Go to infinite loop when Usage Fault exception occurs
-  while(1) {
+  while (1) {
   }
 }
 
@@ -73,33 +70,28 @@ void UsageFault_Handler(void)
  * @param  None
  * @return None
  */
-void SVC_Handler(void) {
-}
+void SVC_Handler(void) {}
 
 /**
  * @brief  This function handles Debug Monitor exception.
  * @param  None
  * @return None
  */
-void DebugMon_Handler(void) {
-}
+void DebugMon_Handler(void) {}
 
 /**
  * @brief  This function handles PendSVC exception.
  * @param  None
  * @return None
  */
-void PendSV_Handler(void) {
-}
+void PendSV_Handler(void) {}
 
 /**
  * @brief  This function handles SysTick Handler.
  * @param  None
  * @return None
  */
-void SysTick_Handler(void) {
-  HAL_IncTick();
-}
+void SysTick_Handler(void) { HAL_IncTick(); }
 
 /******************************************************************************/
 /*                 STM32F4xx Peripherals Interrupt Handlers                   */
@@ -113,27 +105,21 @@ void SysTick_Handler(void) {
  * @param  None
  * @return None
  */
-void BSP_SD_DMA_Rx_IRQHandler(void) {
-  HAL_DMA_IRQHandler(uSdHandle.hdmarx);
-}
+void BSP_SD_DMA_Rx_IRQHandler(void) { HAL_DMA_IRQHandler(uSdHandle.hdmarx); }
 
 /**
  * @brief  This function handles DMA2 Stream 6 interrupt request.
  * @param  None
  * @return None
  */
-void BSP_SD_DMA_Tx_IRQHandler(void) {
-  HAL_DMA_IRQHandler(uSdHandle.hdmatx);
-}
+void BSP_SD_DMA_Tx_IRQHandler(void) { HAL_DMA_IRQHandler(uSdHandle.hdmatx); }
 
 /**
  * @brief  This function handles SDIO interrupt request.
  * @param  None
  * @return None
  */
-void SDIO_IRQHandler(void) {
-  HAL_SD_IRQHandler(&uSdHandle);
-}
+void SDIO_IRQHandler(void) { HAL_SD_IRQHandler(&uSdHandle); }
 
 /**
  * @brief  This function handles PPP interrupt request.
@@ -143,4 +129,4 @@ void SDIO_IRQHandler(void) {
 #if 0
 void PPP_IRQHandler(void) {
 }
-#endif // 0
+#endif  // 0

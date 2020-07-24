@@ -14,11 +14,11 @@
 #include <stdbool.h>
 
 #if defined(__GNUC__) || defined(__clang__)
-  /// Compiler attribute
-  #define BL_ATTRS(x)                   __attribute__(x)
+/// Compiler attribute
+#define BL_ATTRS(x) __attribute__(x)
 #else
-  /// Compiler attribute (empty macro)
-  #define BL_ATTRS(x)
+/// Compiler attribute (empty macro)
+#define BL_ATTRS(x)
 #endif
 
 /// Bootloader arguments stored in the Start-up Mailbox
@@ -30,7 +30,7 @@ typedef struct BL_ATTRS((packed)) bl_args_ {
 
 /// Bootloader flags
 typedef enum bl_flags_t_ {
-  bl_flag_no_args_crc_check = (1 << 0) ///< Disables check of arguments CRC
+  bl_flag_no_args_crc_check = (1 << 0)  ///< Disables check of arguments CRC
 } bl_flags_t;
 
 /// Bootloader exit status
@@ -53,7 +53,7 @@ extern "C" {
 bl_status_t bootloader_run(const bl_args_t* p_args, bl_flags_t flags);
 
 #ifdef __cplusplus
-} // extern "C"
+}  // extern "C"
 #endif
 
-#endif // BOOTLOADER_H_INCLUDED
+#endif  // BOOTLOADER_H_INCLUDED

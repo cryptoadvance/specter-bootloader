@@ -35,7 +35,7 @@ bool bl_read_args(bl_args_t* p_destination);
 bool bl_write_args(const bl_args_t* p_source);
 
 #ifdef __cplusplus
-} // extern "C"
+}  // extern "C"
 #endif
 
-#endif // STARTUP_MAILBOX_H_INCLUDED
+#endif  // STARTUP_MAILBOX_H_INCLUDED

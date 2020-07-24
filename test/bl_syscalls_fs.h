@@ -22,8 +22,8 @@ typedef FILE* bl_file_t;
 
 /// Context of file searching functions
 typedef struct bl_ffind_ctx_struct {
-  char* pattern; ///< File pattern to look for
-  DIR *dir;      ///< POSIX directory object
+  char* pattern;  ///< File pattern to look for
+  DIR* dir;       ///< POSIX directory object
 } bl_ffind_ctx_t;
 
-#endif // BL_SYSCALLS_FS_H_INCLUDED
+#endif  // BL_SYSCALLS_FS_H_INCLUDED

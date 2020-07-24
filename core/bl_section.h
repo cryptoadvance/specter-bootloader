@@ -12,21 +12,21 @@
 #include "bl_syscalls.h"
 
 /// Magic word, "SECT" in LE
-#define BL_SECT_MAGIC                   0x54434553UL
+#define BL_SECT_MAGIC 0x54434553UL
 /// Structure revision
-#define BL_SECT_STRUCT_REV              1U
+#define BL_SECT_STRUCT_REV 1U
 /// Maximum allowed size of payload (16 megabytes)
-#define BL_PAYLOAD_SIZE_MAX             (16U * 1024U * 1024U)
+#define BL_PAYLOAD_SIZE_MAX (16U * 1024U * 1024U)
 /// Digital signature algorithm string: secp256k1-sha256
-#define BL_DSA_SECP256K1_SHA256         "secp256k1-sha256"
+#define BL_DSA_SECP256K1_SHA256 "secp256k1-sha256"
 /// Maximum allowed value ov version number
-#define BL_VERSION_MAX                  4199999999U
+#define BL_VERSION_MAX 4199999999U
 // Version is not available
-#define BL_VERSION_NA                   0U
+#define BL_VERSION_NA 0U
 /// Maximum size of version string including null character
-#define BL_VERSION_STR_MAX              16U
+#define BL_VERSION_STR_MAX 16U
 /// Name used to identify signature section
-#define BL_SIGNATURE_SECT_NAME          "sign"
+#define BL_SIGNATURE_SECT_NAME "sign"
 
 /// Type of unsigned integer attribute
 typedef uint64_t bl_uint_t;
@@ -37,21 +37,21 @@ typedef uint64_t bl_uint_t;
 /// little-endian format. CRC is calculated over first 252 bytes of this
 /// structure.
 typedef struct BL_ATTRS((packed)) bl_section_t_ {
-  uint32_t magic;         ///< Magic word, BL_SECT_MAGIC (“SECT”, 0x54434553 LE)
-  uint32_t struct_rev;    ///< Revision of structure format
-  char name[16];          ///< Name, zero terminated, unused bytes are 0x00
-  uint32_t pl_ver;        ///< Payload version, 0 if not available
-  uint32_t pl_size;       ///< Payload size
-  uint32_t pl_crc;        ///< Payload CRC
-  uint8_t attr_list[216]; ///< Attributes, list of: { key, size [, value] }
-  uint32_t struct_crc;    ///< CRC of this structure using LE representation
+  uint32_t magic;  ///< Magic word, BL_SECT_MAGIC (“SECT”, 0x54434553 LE)
+  uint32_t struct_rev;     ///< Revision of structure format
+  char name[16];           ///< Name, zero terminated, unused bytes are 0x00
+  uint32_t pl_ver;         ///< Payload version, 0 if not available
+  uint32_t pl_size;        ///< Payload size
+  uint32_t pl_crc;         ///< Payload CRC
+  uint8_t attr_list[216];  ///< Attributes, list of: { key, size [, value] }
+  uint32_t struct_crc;     ///< CRC of this structure using LE representation
 } bl_section_t;
 
 /// Attribute identifiers
 typedef enum bl_attr_t_ {
-  bl_attr_algorithm   = 1, ///< Digital signature algorithm
-  bl_attr_base_addr   = 2, ///< Base address of firmware
-  bl_attr_entry_point = 3, ///< Entry point of firmware
+  bl_attr_algorithm = 1,    ///< Digital signature algorithm
+  bl_attr_base_addr = 2,    ///< Base address of firmware
+  bl_attr_entry_point = 3,  ///< Entry point of firmware
 } bl_attr_t;
 
 #ifdef __cplusplus
@@ -89,8 +89,7 @@ bool bl_validate_payload(const bl_section_t* p_hdr, const uint8_t* pl_buf,
  * @param file   file with position set to beginning of the payload
  * @return       true if paylad is valid
  */
-bool bl_validate_payload_from_file(const bl_section_t* p_hdr,
-                                   bl_file_t file);
+bool bl_validate_payload_from_file(const bl_section_t* p_hdr, bl_file_t file);
 
 /**
  * Validates payload reading it from flash memory
@@ -99,8 +98,7 @@ bool bl_validate_payload_from_file(const bl_section_t* p_hdr,
  * @param addr   starting address of payload in flash memory
  * @return       true if paylad is valid
  */
-bool bl_validate_payload_from_flash(const bl_section_t* p_hdr,
-                                    bl_addr_t addr);
+bool bl_validate_payload_from_flash(const bl_section_t* p_hdr, bl_addr_t addr);
 
 /**
  * Checks if the given section is a Payload section (contains firmware)
@@ -155,7 +153,7 @@ bool bl_section_get_attr_str(const bl_section_t* p_hdr, bl_attr_t attr_id,
 bool bl_version_to_str(uint32_t version, char* buf, size_t buf_size);
 
 #ifdef __cplusplus
-} // extern "C"
+}  // extern "C"
 #endif
 
-#endif // BL_SECTION_H_INCLUDED
+#endif  // BL_SECTION_H_INCLUDED
