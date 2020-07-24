@@ -284,11 +284,12 @@ bool bl_version_to_str(uint32_t version, char* buf, size_t buf_size) {
       uint32_t rc_rev = version % 100U;
 
       int res = -1;
-      if (rc_rev == 99) {
-        res = snprintf(buf, buf_size, "%u.%u.%u", major, minor, patch);
+      if (99U == rc_rev) {
+        res = snprintf(buf, buf_size, "%u.%u.%u", (unsigned)major,
+                       (unsigned)minor, (unsigned)patch);
       } else {
-        res = snprintf(buf, buf_size, "%u.%u.%u-rc%u", major, minor, patch,
-                       rc_rev);
+        res = snprintf(buf, buf_size, "%u.%u.%u-rc%u", (unsigned)major,
+                       (unsigned)minor, (unsigned)patch, (unsigned)rc_rev);
       }
       return (res > 0);
     }

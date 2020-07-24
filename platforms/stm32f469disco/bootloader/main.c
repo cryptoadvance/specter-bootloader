@@ -21,7 +21,9 @@ static const char version_tag[] __attribute__((used)) =
 FATFS SDFatFs;  /* File system object for SD disk logical drive */
 FIL MyFile;     /* File object */
 char SDPath[4]; /* SD disk logical drive path */
+#if 0 // TODO: remove
 static uint8_t buffer[FF_MAX_SS]; /* a work buffer for the f_mkfs() */
+#endif
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void Error_Handler(void);

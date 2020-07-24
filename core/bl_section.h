@@ -36,7 +36,7 @@ typedef uint64_t bl_uint_t;
 /// This structure has a fixed size of 256 bytes. All 32-bit words are stored in
 /// little-endian format. CRC is calculated over first 252 bytes of this
 /// structure.
-typedef struct BL_ATTRS((packed)) bl_section_t_ {
+typedef struct BL_ATTRS((packed)) bl_section_t {
   uint32_t magic;  ///< Magic word, BL_SECT_MAGIC (“SECT”, 0x54434553 LE)
   uint32_t struct_rev;     ///< Revision of structure format
   char name[16];           ///< Name, zero terminated, unused bytes are 0x00
@@ -48,7 +48,7 @@ typedef struct BL_ATTRS((packed)) bl_section_t_ {
 } bl_section_t;
 
 /// Attribute identifiers
-typedef enum bl_attr_t_ {
+typedef enum bl_attr_t {
   bl_attr_algorithm = 1,    ///< Digital signature algorithm
   bl_attr_base_addr = 2,    ///< Base address of firmware
   bl_attr_entry_point = 3,  ///< Entry point of firmware
