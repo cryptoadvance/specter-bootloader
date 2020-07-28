@@ -3,12 +3,41 @@
  * @brief      Bootloader sections and operations on them
  * @author     Mike Tolkachev <contact@miketolkachev.dev>
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
+ *
+ * WARNING: This code is not expected to be thread-safe, as Bootloader always
+ * runs non-concurrently!
+ *
+ * NOTE: Only little-endian machines are supported. Support of natively
+ * big-endian machines is not planned.
  */
 
 #include "crc32.h"
 #include "bl_section.h"
 #include "bl_util.h"
 #include "bootloader_private.h"
+
+/// Name used to identify signature section
+#define BL_SIGNATURE_SECT_NAME "sign"
+/// Size of public key fingerprint
+#define BL_PUBKEY_FP_SIZE BL_MEMBER_SIZE(bl_signature_rec_t, fingerprint)
+/// Size of statically allocated shared IO buffer
+#define IO_BUF_SIZE 512U
+
+/// Signature record contained in Signature section
+typedef struct BL_ATTRS((packed)) bl_signature_rec_t {
+  uint8_t fingerprint[16];  ///< Public key fingerprint
+  uint8_t signature[64];    ///< Signature: 64-byte compact signature
+} bl_signature_rec_t;
+
+/// Statically allocated contex
+static struct {
+  // IO buffer
+  uint8_t io_buf[IO_BUF_SIZE];
+  /// Callback function called to report progress of operations
+  bl_cb_progress_t cb_progress;
+  /// User-provided context for callback functions
+  void* cb_ctx;
+} ctx = {.cb_progress = NULL};
 
 /**
  * Checks if given character is a digit
@@ -26,6 +55,26 @@ static inline bool is_digit(char chr) { return chr >= '0' && chr <= '9'; }
  */
 static inline bool is_letter(char chr) {
   return ((chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z'));
+}
+
+void blsect_set_progress_callback(bl_cb_progress_t cb_progress,
+                                  void* user_ctx) {
+  ctx.cb_progress = cb_progress;
+  ctx.cb_ctx = user_ctx;
+}
+
+/**
+ * Reports progress by calling a callback function if it is initialized
+ *
+ * @param arg       argument passed to callback function
+ * @param total     total number of steps
+ * @param complete  number of complete steps
+ */
+static inline void report_progress(bl_cbarg_t arg, uint32_t total,
+                                   uint32_t complete) {
+  if (ctx.cb_progress) {
+    ctx.cb_progress(ctx.cb_ctx, arg, total, complete);
+  }
 }
 
 /**
@@ -94,7 +143,7 @@ static bool validate_attributes(const uint8_t* attr_list, size_t buf_size) {
   return false;
 }
 
-bool bl_validate_header(const bl_section_t* p_hdr) {
+bool blsect_validate_header(const bl_section_t* p_hdr) {
   if (p_hdr) {
     if (BL_SECT_MAGIC == p_hdr->magic &&
         BL_SECT_STRUCT_REV == p_hdr->struct_rev) {
@@ -111,8 +160,8 @@ bool bl_validate_header(const bl_section_t* p_hdr) {
   return false;
 }
 
-bool bl_validate_payload(const bl_section_t* p_hdr, const uint8_t* pl_buf,
-                         uint32_t pl_size) {
+bool blsect_validate_payload(const bl_section_t* p_hdr, const uint8_t* pl_buf,
+                             uint32_t pl_size) {
   if (p_hdr && pl_buf && pl_size && pl_size <= BL_PAYLOAD_SIZE_MAX) {
     if (p_hdr->pl_size == pl_size) {
       return p_hdr->pl_crc == crc32_fast(pl_buf, pl_size, 0U);
@@ -121,61 +170,63 @@ bool bl_validate_payload(const bl_section_t* p_hdr, const uint8_t* pl_buf,
   return false;
 }
 
-bool bl_validate_payload_from_file(const bl_section_t* p_hdr, bl_file_t file) {
+bool blsect_validate_payload_from_file(const bl_section_t* p_hdr,
+                                       bl_file_t file, bl_cbarg_t progr_arg) {
   if (p_hdr && p_hdr->pl_size && p_hdr->pl_size <= BL_PAYLOAD_SIZE_MAX &&
       file) {
-    const size_t buf_size = 256U;
-    uint8_t buf[buf_size];
     size_t rm_bytes = p_hdr->pl_size;
     uint32_t crc = 0U;
 
+    report_progress(progr_arg, p_hdr->pl_size, 0U);
     while (rm_bytes) {
       if (blsys_feof(file)) {
         return false;
       }
-      size_t read_len = (rm_bytes < buf_size) ? rm_bytes : buf_size;
-      size_t got_len = blsys_fread(buf, 1U, read_len, file);
+      size_t read_len = (rm_bytes < IO_BUF_SIZE) ? rm_bytes : IO_BUF_SIZE;
+      size_t got_len = blsys_fread(ctx.io_buf, 1U, read_len, file);
       if (got_len != read_len) {
         return false;
       }
-      crc = crc32_fast(buf, read_len, crc);
+      crc = crc32_fast(ctx.io_buf, read_len, crc);
       rm_bytes -= read_len;
+      report_progress(progr_arg, p_hdr->pl_size, p_hdr->pl_size - rm_bytes);
     }
     return crc == p_hdr->pl_crc;
   }
   return false;
 }
 
-bool bl_validate_payload_from_flash(const bl_section_t* p_hdr, bl_addr_t addr) {
+bool blsect_validate_payload_from_flash(const bl_section_t* p_hdr,
+                                        bl_addr_t addr, bl_cbarg_t progr_arg) {
   if (p_hdr && p_hdr->pl_size && p_hdr->pl_size <= BL_PAYLOAD_SIZE_MAX) {
-    const size_t buf_size = 256U;
-    uint8_t buf[buf_size];
     size_t rm_bytes = p_hdr->pl_size;
     bl_addr_t curr_addr = addr;
     uint32_t crc = 0U;
 
+    report_progress(progr_arg, p_hdr->pl_size, 0U);
     while (rm_bytes) {
-      size_t read_len = (rm_bytes < buf_size) ? rm_bytes : buf_size;
-      if (!blsys_flash_read(curr_addr, buf, read_len)) {
+      size_t read_len = (rm_bytes < IO_BUF_SIZE) ? rm_bytes : IO_BUF_SIZE;
+      if (!blsys_flash_read(curr_addr, ctx.io_buf, read_len)) {
         return false;
       }
-      crc = crc32_fast(buf, read_len, crc);
+      crc = crc32_fast(ctx.io_buf, read_len, crc);
       curr_addr += read_len;
       rm_bytes -= read_len;
+      report_progress(progr_arg, p_hdr->pl_size, p_hdr->pl_size - rm_bytes);
     }
     return crc == p_hdr->pl_crc;
   }
   return false;
 }
 
-bool bl_section_is_payload(const bl_section_t* p_hdr) {
+bool blsect_is_payload(const bl_section_t* p_hdr) {
   if (p_hdr) {
-    return !bl_section_is_signature(p_hdr);
+    return !blsect_is_signature(p_hdr);
   }
   return false;
 }
 
-bool bl_section_is_signature(const bl_section_t* p_hdr) {
+bool blsect_is_signature(const bl_section_t* p_hdr) {
   if (p_hdr) {
     return bl_streq(p_hdr->name, BL_SIGNATURE_SECT_NAME);
   }
@@ -225,8 +276,8 @@ static int find_attribute(const uint8_t* attr_list, size_t buf_size,
   return -1;
 }
 
-bool bl_section_get_attr_uint(const bl_section_t* p_hdr, bl_attr_t attr_id,
-                              bl_uint_t* p_value) {
+bool blsect_get_attr_uint(const bl_section_t* p_hdr, bl_attr_t attr_id,
+                          bl_uint_t* p_value) {
   if (p_hdr && p_value) {
     int idx =
         find_attribute(p_hdr->attr_list, sizeof(p_hdr->attr_list), attr_id);
@@ -246,8 +297,8 @@ bool bl_section_get_attr_uint(const bl_section_t* p_hdr, bl_attr_t attr_id,
   return false;
 }
 
-bool bl_section_get_attr_str(const bl_section_t* p_hdr, bl_attr_t attr_id,
-                             char* buf, size_t buf_size) {
+bool blsect_get_attr_str(const bl_section_t* p_hdr, bl_attr_t attr_id,
+                         char* buf, size_t buf_size) {
   if (p_hdr && buf && buf_size) {
     int idx =
         find_attribute(p_hdr->attr_list, sizeof(p_hdr->attr_list), attr_id);
@@ -272,7 +323,7 @@ bool bl_section_get_attr_str(const bl_section_t* p_hdr, bl_attr_t attr_id,
   return false;
 }
 
-bool bl_version_to_str(uint32_t version, char* buf, size_t buf_size) {
+bool blsect_version_to_str(uint32_t version, char* buf, size_t buf_size) {
   if (buf && buf_size) {
     if (BL_VERSION_NA == version) {
       *buf = '\0';

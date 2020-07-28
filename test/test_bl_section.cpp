@@ -27,29 +27,71 @@ static const bl_section_t ref_header = {
   .name = "boot",
   .pl_ver = 102213405U, // "1.22.134-rc5"
   .pl_size = sizeof(ref_payload),
-  .pl_crc = 0x77AC5BCC, // CRC of ref_payload
+  .pl_crc = 0x77AC5BCCU, // CRC of ref_payload
   .attr_list = {
-    bl_attr_algorithm, 16, 's', 'e', 'c', 'p', '2', '5', '6', 'k', '1', '-',
+    bl_attr_algorithm, 16U, 's', 'e', 'c', 'p', '2', '5', '6', 'k', '1', '-',
       's', 'h', 'a', '2', '5', '6',
-    bl_attr_base_addr, 4, 0x00, 0x00, 0x1C, 0x08, // 0x081C0000 in LE
-    bl_attr_entry_point, 2, 0x29, 0x6E //  in LE
+    bl_attr_base_addr, 4U, 0x00U, 0x00U, 0x1CU, 0x08U, // 0x081C0000 in LE
+    bl_attr_entry_point, 2U, 0x29U, 0x6EU //  0x6E29 in LE
   },
   .struct_crc = 0x8938D2B2U // Correct
 };
 // clang-format on
 
+/// Reference header, serialized to byte string
+static const char ref_header_serialized[] =
+    "SECT\x01\x00\x00\x00boot\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x1d\xa7\x17\x06\x1e\x00\x00\x00\xcc[\xacw\x01\x10secp256k1-"
+    "sha256\x02\x04\x00\x00\x1c\x08\x03\x02)"
+    "n\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\xb2\xd2\x38\x89";
+
+/// Reference section, serialized to byte string
+static const char ref_section_serialized[] =
+    "SECT\x01\x00\x00\x00boot\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x1d\xa7\x17\x06\x1e\x00\x00\x00\xcc[\xacw\x01\x10secp256k1-"
+    "sha256\x02\x04\x00\x00\x1c\x08\x03\x02)"
+    "n\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+    "\x00\x00\x00\x00\x00\x00\x00\x00\xb2\xd2\x38\x89\x18T)"
+    "\xd4\x05\xdb\x13\xc8x'="
+    "^\xe7Zh|J\xb8N5\xb4\x41\xb2\x87\xc3\x35\x9c\xab\x90(";
+
+/// Hash sentence of the reference section
+static const char ref_section_hash_sentence[] =
+    "boot\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1d\xa7\x17\x06+"
+    "\xdb\xae\xf9\xc3\x8a>\x00\xdc\x9b\x98\x84\x8fn\xbf\x18\xb5{T{"
+    "\xd3\x39\xe5\xef\x90\x11\xfd\xb7\x10\x15\xa5\x87";
+
 /// File wrapper around payload buffer
-class payload_file {
+class PayloadFile {
  public:
-  inline payload_file(const uint8_t* pl_buf = ref_payload,
-                      uint32_t pl_size = sizeof(ref_payload))
+  inline PayloadFile(const uint8_t* pl_buf = ref_payload,
+                     uint32_t pl_size = sizeof(ref_payload))
       : fd(fmemopen((void*)pl_buf, pl_size, "r")) {
     if (!fd) {
       REQUIRE(false);  // Abort test
     }
   }
 
-  inline ~payload_file() {
+  inline ~PayloadFile() {
     if (fd) {
       fclose(fd);
     }
@@ -61,17 +103,17 @@ class payload_file {
   FILE* fd;
 };
 
-class flash_buf {
+/// Emulates flash memory using buffer in RAM
+class FlashBuf {
  public:
-  inline flash_buf(const uint8_t* pl_buf = ref_payload,
-                   uint32_t pl_size = sizeof(ref_payload)) {
+  inline FlashBuf(const uint8_t* pl_buf = ref_payload,
+                  uint32_t pl_size = sizeof(ref_payload)) {
     if (!flash_emu_buf) {
       flash_emu_buf = new uint8_t[pl_size];
       flash_emu_size = pl_size;
       if (pl_buf) {
         memcpy(flash_emu_buf, pl_buf, pl_size);
-      }
-      else {
+      } else {
         memset(flash_emu_buf, 0xFF, pl_size);
       }
     } else {
@@ -80,7 +122,7 @@ class flash_buf {
     }
   }
 
-  inline ~flash_buf() {
+  inline ~FlashBuf() {
     if (flash_emu_buf) {
       delete flash_emu_buf;
       flash_emu_buf = NULL;
@@ -92,6 +134,70 @@ class flash_buf {
 
   inline uint8_t& operator[](int index) { return flash_emu_buf[index]; }
 };
+
+/// Tracks progress reported by C functions
+class ProgressMonitor {
+ public:
+  inline ProgressMonitor(bl_cbarg_t expected_arg)
+      : prev_total(-1),
+        prev_complete(-1),
+        expected_arg_(expected_arg),
+        check_status(false),
+        context_valid(true) {
+    if (!p_inst) {
+      p_inst = this;
+      blsect_set_progress_callback(ProgressMonitor::callback,
+                                   static_cast<void*>(this));
+    } else {
+      INFO("ERROR: progress monitor already created");
+      REQUIRE(false);  // Abort test
+    }
+  }
+
+  inline ~ProgressMonitor() {
+    p_inst = NULL;
+    blsect_set_progress_callback(NULL, NULL);
+  }
+
+  static void callback(void* ctx, bl_cbarg_t arg, uint32_t total,
+                       uint32_t complete) {
+    if (p_inst) {
+      if (p_inst->context_valid && ctx == (void*)p_inst) {
+        p_inst->check_args(arg, total, complete);
+      } else {
+        p_inst->context_valid = false;
+      }
+    } else {
+      INFO("ERROR: progress monitor not created");
+      REQUIRE(false);  // Abort test
+    }
+  }
+
+  inline bool is_complete() {
+    return context_valid && check_status && prev_complete == prev_total;
+  }
+
+ private:
+  void check_args(bl_cbarg_t arg, uint32_t total, uint32_t complete) {
+    if (-1 == prev_total && -1 == prev_complete) {
+      check_status = (arg == expected_arg_ && total && complete <= total);
+    } else {
+      check_status =
+          (check_status && arg == expected_arg_ && total && complete <= total &&
+           total == prev_total && complete >= prev_complete);
+    }
+    prev_total = total;
+    prev_complete = complete;
+  }
+
+  int64_t prev_total;
+  int64_t prev_complete;
+  bl_cbarg_t expected_arg_;
+  bool check_status;
+  bool context_valid;
+  static ProgressMonitor* p_inst;
+};
+ProgressMonitor* ProgressMonitor::p_inst = NULL;
 
 void blsys_fatal_error(const char* text) {
   INFO(text);
@@ -267,58 +373,58 @@ TEST_CASE("Validate attributes") {
 
 TEST_CASE("Validate header") {
   SECTION("valid") {
-    SECTION("reference header") { REQUIRE(bl_validate_header(&ref_header)); }
+    SECTION("reference header") { REQUIRE(blsect_validate_header(&ref_header)); }
 
     SECTION("version: N/A") {
       bl_section_t hdr = ref_header;
       hdr.pl_ver = BL_VERSION_NA;
-      REQUIRE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE(blsect_validate_header(correct_crc(&hdr)));
     }
 
     SECTION("version: last valid") {
       bl_section_t hdr = ref_header;
       hdr.pl_ver = BL_VERSION_MAX;
-      REQUIRE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE(blsect_validate_header(correct_crc(&hdr)));
     }
 
     SECTION("maximum payload size") {
       bl_section_t hdr = ref_header;
       hdr.pl_size = BL_PAYLOAD_SIZE_MAX;
-      REQUIRE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE(blsect_validate_header(correct_crc(&hdr)));
     }
 
     SECTION("attribute with maximum size") {
       bl_section_t hdr = ref_header;
       hdr.attr_list[1] = sizeof(hdr.attr_list) - 2U;
-      REQUIRE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE(blsect_validate_header(correct_crc(&hdr)));
     }
 
     SECTION("unknown attribute") {
       bl_section_t hdr = ref_header;
       hdr.attr_list[0] = 0xFE;
-      REQUIRE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE(blsect_validate_header(correct_crc(&hdr)));
     }
   }
 
   SECTION("invalid") {
-    SECTION("NULL pointer") { REQUIRE_FALSE(bl_validate_header(NULL)); }
+    SECTION("NULL pointer") { REQUIRE_FALSE(blsect_validate_header(NULL)); }
 
     SECTION("wrong magic word") {
       bl_section_t hdr = ref_header;
       hdr.magic = 0xDEADBEEFU;
-      REQUIRE_FALSE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE_FALSE(blsect_validate_header(correct_crc(&hdr)));
     }
 
     SECTION("wrong structure revision") {
       bl_section_t hdr = ref_header;
       hdr.struct_rev = 0xDEADBEEFU;
-      REQUIRE_FALSE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE_FALSE(blsect_validate_header(correct_crc(&hdr)));
     }
 
     SECTION("no ending null in name") {
       bl_section_t hdr = ref_header;
       memset(hdr.name, 'a', sizeof(hdr.name));
-      REQUIRE_FALSE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE_FALSE(blsect_validate_header(correct_crc(&hdr)));
     }
 
     SECTION("null character inside name") {
@@ -327,79 +433,81 @@ TEST_CASE("Validate header") {
       REQUIRE(sizeof(hdr.name) >= sizeof(bad_name));
       memset(hdr.name, 0, sizeof(hdr.name));
       memcpy(hdr.name, bad_name, sizeof(bad_name));
-      REQUIRE_FALSE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE_FALSE(blsect_validate_header(correct_crc(&hdr)));
     }
 
     SECTION("wrong payload version") {
       bl_section_t hdr = ref_header;
       hdr.pl_ver = BL_VERSION_MAX + 1U;
-      REQUIRE_FALSE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE_FALSE(blsect_validate_header(correct_crc(&hdr)));
     }
 
     SECTION("wrong payload size") {
       bl_section_t hdr = ref_header;
       hdr.pl_size = 0U;
-      REQUIRE_FALSE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE_FALSE(blsect_validate_header(correct_crc(&hdr)));
 
       hdr = ref_header;
       hdr.pl_size = BL_PAYLOAD_SIZE_MAX + 1;
-      REQUIRE_FALSE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE_FALSE(blsect_validate_header(correct_crc(&hdr)));
     }
 
     SECTION("oversized attribute") {
       bl_section_t hdr = ref_header;
       hdr.attr_list[1] = sizeof(hdr.attr_list) - 1U;
-      REQUIRE_FALSE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE_FALSE(blsect_validate_header(correct_crc(&hdr)));
     }
 
     SECTION("non-zero byte after last attribute") {
       bl_section_t hdr = ref_header;
       hdr.attr_list[sizeof(hdr.attr_list) - 1] = 1U;
-      REQUIRE_FALSE(bl_validate_header(correct_crc(&hdr)));
+      REQUIRE_FALSE(blsect_validate_header(correct_crc(&hdr)));
     }
 
     SECTION("wrong crc") {
       bl_section_t hdr = ref_header;
       hdr.struct_crc ^= 1U;
-      REQUIRE_FALSE(bl_validate_header(&hdr));
+      REQUIRE_FALSE(blsect_validate_header(&hdr));
     }
   }
 }
 
 TEST_CASE("Validate payload") {
   SECTION("valid, reference payload") {
-    REQUIRE(bl_validate_payload(&ref_header, ref_payload, sizeof(ref_payload)));
+    REQUIRE(blsect_validate_payload(&ref_header, ref_payload, sizeof(ref_payload)));
   }
 
   SECTION("invalid, empty payload") {
-    REQUIRE_FALSE(bl_validate_payload(&ref_header, ref_payload, 0U));
+    REQUIRE_FALSE(blsect_validate_payload(&ref_header, ref_payload, 0U));
   }
 
   SECTION("invalid, NULL payload") {
-    REQUIRE_FALSE(bl_validate_payload(&ref_header, NULL, 12345U));
+    REQUIRE_FALSE(blsect_validate_payload(&ref_header, NULL, 12345U));
   }
 
   SECTION("invalid, broken payload") {
     uint8_t pl[sizeof(ref_payload)];
     memcpy(pl, ref_payload, sizeof(pl));
-    REQUIRE(bl_validate_payload(&ref_header, pl, sizeof(pl)));
+    REQUIRE(blsect_validate_payload(&ref_header, pl, sizeof(pl)));
     pl[sizeof(pl) - 1U] ^= 1U;
-    REQUIRE_FALSE(bl_validate_payload(&ref_header, pl, sizeof(pl)));
+    REQUIRE_FALSE(blsect_validate_payload(&ref_header, pl, sizeof(pl)));
   }
 
   SECTION("invalid, broken CRC") {
     bl_section_t hdr = ref_header;
-    REQUIRE(bl_validate_payload(&hdr, ref_payload, sizeof(ref_payload)));
+    REQUIRE(blsect_validate_payload(&hdr, ref_payload, sizeof(ref_payload)));
 
     hdr.pl_crc ^= 1U;
-    REQUIRE_FALSE(bl_validate_payload(correct_crc(&hdr), ref_payload,
+    REQUIRE_FALSE(blsect_validate_payload(correct_crc(&hdr), ref_payload,
                                       sizeof(ref_payload)));
   }
 }
 
 TEST_CASE("Validate payload from file") {
   SECTION("valid, reference payload") {
-    REQUIRE(bl_validate_payload_from_file(&ref_header, payload_file()));
+    ProgressMonitor monitor(12345U);
+    REQUIRE(blsect_validate_payload_from_file(&ref_header, PayloadFile(), 12345U));
+    REQUIRE(monitor.is_complete());
   }
 
   SECTION("valid, long payload") {
@@ -415,17 +523,19 @@ TEST_CASE("Validate payload from file") {
     bl_section_t hdr = ref_header;
     hdr.pl_size = pl_size;
     hdr.pl_crc = crc32_fast(pl_buf.get(), pl_size, 0U);
-    auto file = payload_file(pl_buf.get(), pl_size);
+    auto file = PayloadFile(pl_buf.get(), pl_size);
 
-    REQUIRE(bl_validate_payload_from_file(correct_crc(&hdr), file));
+    ProgressMonitor monitor(12345U);
+    REQUIRE(blsect_validate_payload_from_file(correct_crc(&hdr), file, 12345U));
+    REQUIRE(monitor.is_complete());
   }
 
   SECTION("invalid, NULL header") {
-    REQUIRE_FALSE(bl_validate_payload_from_file(NULL, payload_file()));
+    REQUIRE_FALSE(blsect_validate_payload_from_file(NULL, PayloadFile(), 0U));
   }
 
   SECTION("invalid, NULL file") {
-    REQUIRE_FALSE(bl_validate_payload_from_file(&ref_header, NULL));
+    REQUIRE_FALSE(blsect_validate_payload_from_file(&ref_header, NULL, 0U));
   }
 
   SECTION("invalid, corrupted payload") {
@@ -445,8 +555,8 @@ TEST_CASE("Validate payload from file") {
     // Corrupt payload
     pl_buf[9U * pl_size / 10U] ^= 1U;
 
-    auto file = payload_file(pl_buf.get(), pl_size);
-    REQUIRE_FALSE(bl_validate_payload_from_file(correct_crc(&hdr), file));
+    auto file = PayloadFile(pl_buf.get(), pl_size);
+    REQUIRE_FALSE(blsect_validate_payload_from_file(correct_crc(&hdr), file, 0U));
   }
 
   SECTION("invalid, oversized payload") {
@@ -458,30 +568,34 @@ TEST_CASE("Validate payload from file") {
     bl_section_t hdr = ref_header;
     hdr.pl_size = pl_size;
     hdr.pl_crc = crc32_fast(pl_buf.get(), pl_size, 0U);
-    auto file = payload_file(pl_buf.get(), pl_size);
+    auto file = PayloadFile(pl_buf.get(), pl_size);
 
-    REQUIRE_FALSE(bl_validate_payload_from_file(correct_crc(&hdr), file));
+    REQUIRE_FALSE(blsect_validate_payload_from_file(correct_crc(&hdr), file, 0U));
   }
 }
 
 TEST_CASE("Validate payload from flash") {
   SECTION("valid, reference payload") {
-    auto flash = flash_buf();
-    REQUIRE(bl_validate_payload_from_flash(&ref_header, FLASH_EMU_BASE));
+    auto flash = FlashBuf();
+    ProgressMonitor monitor(3456U);
+    REQUIRE(blsect_validate_payload_from_flash(&ref_header, FLASH_EMU_BASE, 3456U));
+    REQUIRE(monitor.is_complete());
   }
 
   SECTION("valid, reference payload with offset") {
     size_t offset = 123U;
-    auto flash = flash_buf(NULL, offset + sizeof(ref_payload));
+    auto flash = FlashBuf(NULL, offset + sizeof(ref_payload));
     memcpy((uint8_t*)flash + offset, ref_payload, sizeof(ref_payload));
-    REQUIRE(
-        bl_validate_payload_from_flash(&ref_header, FLASH_EMU_BASE + offset));
+    ProgressMonitor monitor(123456U);
+    REQUIRE(blsect_validate_payload_from_flash(&ref_header, FLASH_EMU_BASE + offset,
+                                           123456U));
+    REQUIRE(monitor.is_complete());
   }
 
   SECTION("valid, long payload") {
     // Generate payload buffer
     const size_t pl_size = BL_PAYLOAD_SIZE_MAX;
-    auto flash = flash_buf(NULL, pl_size);
+    auto flash = FlashBuf(NULL, pl_size);
     for (size_t i = 0; i < pl_size; ++i) {
       flash[i] = (uint8_t)(i & 0xFFU);
     }
@@ -492,17 +606,19 @@ TEST_CASE("Validate payload from flash") {
     hdr.pl_crc = crc32_fast(flash, pl_size, 0U);
     (void)correct_crc(&hdr);
 
-    REQUIRE(bl_validate_payload_from_flash(&hdr, FLASH_EMU_BASE));
+    ProgressMonitor monitor(123456U);
+    REQUIRE(blsect_validate_payload_from_flash(&hdr, FLASH_EMU_BASE, 123456U));
+    REQUIRE(monitor.is_complete());
   }
 
   SECTION("invalid, NULL header") {
-    REQUIRE_FALSE(bl_validate_payload_from_flash(NULL, FLASH_EMU_BASE));
+    REQUIRE_FALSE(blsect_validate_payload_from_flash(NULL, FLASH_EMU_BASE, 0U));
   }
 
   SECTION("invalid, corrupted payload") {
     // Generate payload buffer
     const size_t pl_size = BL_PAYLOAD_SIZE_MAX;
-    auto flash = flash_buf(NULL, pl_size);
+    auto flash = FlashBuf(NULL, pl_size);
     for (size_t i = 0; i < pl_size; ++i) {
       flash[i] = (uint8_t)(i & 0xFFU);
     }
@@ -516,41 +632,41 @@ TEST_CASE("Validate payload from flash") {
     // Corrupt payload
     flash[9U * pl_size / 10U] ^= 1U;
 
-    REQUIRE_FALSE(bl_validate_payload_from_flash(&hdr, FLASH_EMU_BASE));
+    REQUIRE_FALSE(blsect_validate_payload_from_flash(&hdr, FLASH_EMU_BASE, 0U));
   }
 }
 
 TEST_CASE("Check if payload section") {
-  SECTION("reference header") { REQUIRE(bl_section_is_payload(&ref_header)); }
+  SECTION("reference header") { REQUIRE(blsect_is_payload(&ref_header)); }
 
   SECTION("section named \"firmware\"") {
     bl_section_t hdr = ref_header;
     REQUIRE(strput(hdr.name, sizeof(hdr.name), "firmware"));
-    REQUIRE(bl_section_is_payload(&hdr));
+    REQUIRE(blsect_is_payload(&hdr));
   }
 
   SECTION("section named \"sign\"") {
     bl_section_t hdr = ref_header;
     REQUIRE(strput(hdr.name, sizeof(hdr.name), "sign"));
-    REQUIRE_FALSE(bl_section_is_payload(&hdr));
+    REQUIRE_FALSE(blsect_is_payload(&hdr));
   }
 }
 
 TEST_CASE("Check if signature section") {
   SECTION("reference header") {
-    REQUIRE_FALSE(bl_section_is_signature(&ref_header));
+    REQUIRE_FALSE(blsect_is_signature(&ref_header));
   }
 
   SECTION("section named \"firmware\"") {
     bl_section_t hdr = ref_header;
     REQUIRE(strput(hdr.name, sizeof(hdr.name), "firmware"));
-    REQUIRE_FALSE(bl_section_is_signature(&hdr));
+    REQUIRE_FALSE(blsect_is_signature(&hdr));
   }
 
   SECTION("section named \"sign\"") {
     bl_section_t hdr = ref_header;
     REQUIRE(strput(hdr.name, sizeof(hdr.name), "sign"));
-    REQUIRE(bl_section_is_signature(&hdr));
+    REQUIRE(blsect_is_signature(&hdr));
   }
 }
 
@@ -563,17 +679,17 @@ TEST_CASE("Get integer attribute") {
     bl_uint_t tmp = 0;
 
     // Valid
-    REQUIRE(bl_section_get_attr_uint(&hdr, bl_attr_base_addr, &base_addr));
+    REQUIRE(blsect_get_attr_uint(&hdr, bl_attr_base_addr, &base_addr));
     REQUIRE(0x081C0000U == base_addr);
-    REQUIRE(bl_section_get_attr_uint(&hdr, bl_attr_entry_point, &entry));
+    REQUIRE(blsect_get_attr_uint(&hdr, bl_attr_entry_point, &entry));
     REQUIRE(0x6E29 == entry);
 
     // Invalid
     REQUIRE_FALSE(
-        bl_section_get_attr_uint(&hdr, (bl_attr_t)0xFE, &non_existent));
+        blsect_get_attr_uint(&hdr, (bl_attr_t)0xFE, &non_existent));
     REQUIRE(0xEEEEEEEEU == non_existent);
-    REQUIRE_FALSE(bl_section_get_attr_uint(NULL, bl_attr_base_addr, &tmp));
-    REQUIRE_FALSE(bl_section_get_attr_uint(&hdr, bl_attr_base_addr, NULL));
+    REQUIRE_FALSE(blsect_get_attr_uint(NULL, bl_attr_base_addr, &tmp));
+    REQUIRE_FALSE(blsect_get_attr_uint(&hdr, bl_attr_base_addr, NULL));
   }
 
   SECTION("zero-length integer") {
@@ -586,7 +702,7 @@ TEST_CASE("Get integer attribute") {
     hdr.attr_list[1] = 0U;
 
     bl_uint_t tmp = 123456;
-    REQUIRE(bl_section_get_attr_uint(&hdr, attr_id, &tmp));
+    REQUIRE(blsect_get_attr_uint(&hdr, attr_id, &tmp));
     REQUIRE(0U == tmp);
   }
 
@@ -600,10 +716,10 @@ TEST_CASE("Get integer attribute") {
     hdr.attr_list[1] = sizeof(bl_uint_t);
 
     bl_uint_t tmp = 123456;
-    REQUIRE(bl_section_get_attr_uint(&hdr, attr_id, &tmp));
+    REQUIRE(blsect_get_attr_uint(&hdr, attr_id, &tmp));
     REQUIRE(0U == tmp);
     ++hdr.attr_list[1];
-    REQUIRE_FALSE(bl_section_get_attr_uint(&hdr, attr_id, &tmp));
+    REQUIRE_FALSE(blsect_get_attr_uint(&hdr, attr_id, &tmp));
   }
 }
 
@@ -613,10 +729,10 @@ TEST_CASE("Get string attribute") {
     char buf[buf_size];
 
     REQUIRE(
-        bl_section_get_attr_str(&ref_header, bl_attr_algorithm, buf, buf_size));
+        blsect_get_attr_str(&ref_header, bl_attr_algorithm, buf, buf_size));
     REQUIRE(streq(buf, BL_DSA_SECP256K1_SHA256));
     REQUIRE_FALSE(
-        bl_section_get_attr_str(&ref_header, (bl_attr_t)0xFE, buf, buf_size));
+        blsect_get_attr_str(&ref_header, (bl_attr_t)0xFE, buf, buf_size));
   }
 
   SECTION("multiple strings") {
@@ -629,11 +745,11 @@ TEST_CASE("Get string attribute") {
     strcpy((char*)hdr.attr_list, attrs_str);
 
     REQUIRE(validate_attributes(hdr.attr_list, sizeof(hdr.attr_list)));
-    REQUIRE(bl_section_get_attr_str(&hdr, (bl_attr_t)0xA1, buf, sizeof(buf)));
+    REQUIRE(blsect_get_attr_str(&hdr, (bl_attr_t)0xA1, buf, sizeof(buf)));
     REQUIRE(streq(buf, "String 1"));
-    REQUIRE(bl_section_get_attr_str(&hdr, (bl_attr_t)0xA2, buf, sizeof(buf)));
+    REQUIRE(blsect_get_attr_str(&hdr, (bl_attr_t)0xA2, buf, sizeof(buf)));
     REQUIRE(streq(buf, "String 2"));
-    REQUIRE(bl_section_get_attr_str(&hdr, (bl_attr_t)0xA3, buf, sizeof(buf)));
+    REQUIRE(blsect_get_attr_str(&hdr, (bl_attr_t)0xA3, buf, sizeof(buf)));
     REQUIRE(streq(buf, "String 3"));
   }
 
@@ -646,11 +762,11 @@ TEST_CASE("Get string attribute") {
     REQUIRE(sizeof(hdr.attr_list) >= sizeof(attrs_str));
     strcpy((char*)hdr.attr_list, attrs_str);
 
-    REQUIRE(bl_section_get_attr_str(&hdr, (bl_attr_t)0xA3, buf, sizeof(buf)));
+    REQUIRE(blsect_get_attr_str(&hdr, (bl_attr_t)0xA3, buf, sizeof(buf)));
     // Insert null character inside the string with identifier 0xA3
     hdr.attr_list[14] = '\0';
     REQUIRE_FALSE(
-        bl_section_get_attr_str(&hdr, (bl_attr_t)0xA3, buf, sizeof(buf)));
+        blsect_get_attr_str(&hdr, (bl_attr_t)0xA3, buf, sizeof(buf)));
   }
 }
 
@@ -658,19 +774,21 @@ TEST_CASE("Get version string") {
   char buf[BL_VERSION_STR_MAX];
 
   // Valid
-  REQUIRE(bl_version_to_str(102213405U, buf, sizeof(buf)));
+  REQUIRE(blsect_version_to_str(102213405U, buf, sizeof(buf)));
   REQUIRE(streq(buf, "1.22.134-rc5"));
-  REQUIRE(bl_version_to_str(1200001599, buf, sizeof(buf)));
+  REQUIRE(blsect_version_to_str(1200001599, buf, sizeof(buf)));
   REQUIRE(streq(buf, "12.0.15"));
-  REQUIRE(bl_version_to_str(1, buf, sizeof(buf)));
+  REQUIRE(blsect_version_to_str(1, buf, sizeof(buf)));
   REQUIRE(streq(buf, "0.0.0-rc1"));
-  REQUIRE(bl_version_to_str(4199999999, buf, sizeof(buf)));
+  REQUIRE(blsect_version_to_str(4199999999, buf, sizeof(buf)));
   REQUIRE(streq(buf, "41.999.999"));
-  REQUIRE(bl_version_to_str(BL_VERSION_NA, buf, sizeof(buf)));
+  REQUIRE(blsect_version_to_str(BL_VERSION_NA, buf, sizeof(buf)));
   REQUIRE(streq(buf, ""));
 
   // Invalid
-  REQUIRE_FALSE(bl_version_to_str(102213405U, NULL, sizeof(buf)));
-  REQUIRE_FALSE(bl_version_to_str(102213405U, buf, 0U));
-  REQUIRE_FALSE(bl_version_to_str(BL_VERSION_MAX + 1U, buf, sizeof(buf)));
+  REQUIRE_FALSE(blsect_version_to_str(102213405U, NULL, sizeof(buf)));
+  REQUIRE_FALSE(blsect_version_to_str(102213405U, buf, 0U));
+  REQUIRE_FALSE(blsect_version_to_str(BL_VERSION_MAX + 1U, buf, sizeof(buf)));
 }
+
+TEST_CASE("Get hash sentence from flash") {}

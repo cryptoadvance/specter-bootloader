@@ -21,6 +21,15 @@
 #define BL_ATTRS(x)
 #endif
 
+/**
+ * Macro returning size of structure's member
+ *
+ * @param type    type name of the structure
+ * @param member  member name
+ * @return        size of member in bytes
+ */
+#define BL_MEMBER_SIZE(type, member) sizeof(((type*)0)->member)
+
 /// Bootloader arguments stored in the Start-up Mailbox
 typedef struct BL_ATTRS((packed)) bl_args_ {
   uint32_t loaded_from;  ///< Address in Flash of active bootloader
@@ -38,6 +47,20 @@ typedef enum bl_status_t_ {
   bl_status_normal_exit = 0,  ///< Normal exit
   bl_nstatuses                ///< Number of exit status items (not a status)
 } bl_status_t;
+
+/// Type of argument passed to callback functions
+typedef uintptr_t bl_cbarg_t;
+
+/**
+ * Prototype for callback function called to report operation progress
+ *
+ * @param ctx          user-provided context
+ * @param arg          user-provided argument
+ * @param total        total number of steps
+ * @param complete     number of complete steps
+ */
+typedef void (*bl_cb_progress_t)(void* ctx, bl_cbarg_t arg, uint32_t total,
+                                 uint32_t complete);
 
 #ifdef __cplusplus
 extern "C" {
