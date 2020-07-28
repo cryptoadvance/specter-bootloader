@@ -23,10 +23,12 @@ endif
 ######################################
 # source
 ######################################
+# C sources
+C_SOURCES  = $(shell find $(LOC_ROOT) -name *.c)
 # C++ sources
 CPP_SOURCES  = $(shell find $(LOC_ROOT) -name *.cpp)
-# Bootloader core: include only files from /secp256k1_add
-C_SOURCES += $(shell find $(CORE_DIR)/secp256k1_add -name *.c)
+# Bootloader core
+C_SOURCES += $(shell find $(CORE_DIR) -name *.c ! -name startup_mailbox.c)
 # CRC32
 C_SOURCES += $(shell find $(LIB_DIR)/crc32 -name *.c)
 # Crypto library
@@ -50,6 +52,7 @@ C_INCLUDES =  \
 
 # C defines
 C_DEFS =  \
+-DUNIT_TEST \
 -DBL_NO_FATFS \
 -DHAVE_CONFIG_H \
 -DSECP256K1_BUILD \

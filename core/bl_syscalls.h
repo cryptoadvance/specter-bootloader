@@ -315,8 +315,8 @@ bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,
  * @param total      total number of steps
  * @param complete   number of complete steps
  */
-void blsys_progress(const char* caption, const char* operation,
-                    uint32_t n_total, uint32_t complete);
+void blsys_progress(const char* caption, const char* operation, uint32_t total,
+                    uint32_t complete);
 
 #ifdef __cplusplus
 }  // extern "C"

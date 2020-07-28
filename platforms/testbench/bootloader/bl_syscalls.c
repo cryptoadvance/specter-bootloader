@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include "bootloader_private.h"
+#include "bl_util.h"
 #include "bl_syscalls.h"
 
 /// Name of file where contents of emulated flash memory is written
@@ -272,13 +272,13 @@ static void console_erase(int n_chr) {
   }
 }
 
-void blsys_progress(const char* caption, const char* operation,
-                    uint32_t n_total, uint32_t complete) {
+void blsys_progress(const char* caption, const char* operation, uint32_t total,
+                    uint32_t complete) {
   if (caption && operation) {
     const size_t buf_size = strlen(caption) + strlen(operation) + 100U;
     char* str_buf = malloc(buf_size);
     if (str_buf) {
-      uint64_t progress = (uint64_t)complete * 100U / n_total;
+      uint64_t progress = (uint64_t)complete * 100U / total;
       int n_chr = snprintf(str_buf, buf_size, "%s: %s - %3u%%", caption,
                            operation, (unsigned int)progress);
       if (n_chr > 0) {

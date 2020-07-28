@@ -9,11 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include "bootloader_private.h"
+#include "bl_util.h"
 #include "bl_syscalls.h"
 
-/// Base address of emulated flash memory
-#define FLASH_EMU_BASE 0x08000000U
 /// Flags used with fnmatch() function to match file names
 #define FNMATCH_FLAGS (FNM_FILE_NAME | FNM_PERIOD)
 
@@ -36,10 +34,12 @@ static const char* alert_type_str[bl_nalerts] = {
   [bl_alert_error]   = "ERROR" };
 // clang-format on
 
+/// Base address of emulated flash memory
+const bl_addr_t flash_emu_base = 0x08000000U;
 /// Buffer in RAM used to emulate flash memory
-static uint8_t* flash_emu_buf = NULL;
+uint8_t* flash_emu_buf = NULL;
 /// Size of currently allocated flash emulation buffer
-static size_t flash_emu_size = 0U;
+size_t flash_emu_size = 0U;
 
 bool blsys_init(void) {
   flash_emu_buf = (uint8_t*)malloc(flash_emu_size);
@@ -81,8 +81,8 @@ bool blsys_flash_map_get_items(int items, ...) {
  * @return      true if successful
  */
 static bool check_flash_area(bl_addr_t addr, size_t size) {
-  if (addr >= FLASH_EMU_BASE && addr <= SIZE_MAX - size &&
-      addr + size <= FLASH_EMU_BASE + flash_emu_size) {
+  if (addr >= flash_emu_base && addr <= SIZE_MAX - size &&
+      addr + size <= flash_emu_base + flash_emu_size) {
     return true;
   }
   return false;
@@ -90,7 +90,7 @@ static bool check_flash_area(bl_addr_t addr, size_t size) {
 
 bool blsys_flash_erase(bl_addr_t addr, size_t size) {
   if (flash_emu_buf && check_flash_area(addr, size)) {
-    size_t offset = addr - FLASH_EMU_BASE;
+    size_t offset = addr - flash_emu_base;
     memset(flash_emu_buf + offset, 0, size);
     return true;
   }
@@ -99,7 +99,7 @@ bool blsys_flash_erase(bl_addr_t addr, size_t size) {
 
 bool blsys_flash_read(bl_addr_t addr, uint8_t* buf, size_t len) {
   if (flash_emu_buf && buf && check_flash_area(addr, len)) {
-    size_t offset = addr - FLASH_EMU_BASE;
+    size_t offset = addr - flash_emu_base;
     memcpy(buf, flash_emu_buf + offset, len);
     return true;
   }
@@ -108,7 +108,7 @@ bool blsys_flash_read(bl_addr_t addr, uint8_t* buf, size_t len) {
 
 bool blsys_flash_write(bl_addr_t addr, const uint8_t* buf, size_t len) {
   if (flash_emu_buf && buf && check_flash_area(addr, len)) {
-    size_t offset = addr - FLASH_EMU_BASE;
+    size_t offset = addr - flash_emu_base;
     memcpy(flash_emu_buf + offset, buf, len);
     return true;
   }
@@ -217,5 +217,5 @@ bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,
   return bl_alert_terminated;
 }
 
-void blsys_progress(const char* caption, const char* operation,
-                    uint32_t n_total, uint32_t complete) {}
+void blsys_progress(const char* caption, const char* operation, uint32_t total,
+                    uint32_t complete) {}

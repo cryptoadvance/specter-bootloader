@@ -7,11 +7,22 @@
 
 #include "catch2/catch.hpp"
 #include "crc32.h"
+#include "progress_monitor.hpp"
+#include "bl_section.h"
 
-// Include C source files used in tests
-#include "bl_util.c"
-#include "bl_section.c"
-#include "bl_syscalls_test.c"
+/// Digital signature algorithm string: secp256k1-sha256
+#define SECP256K1_SHA256 "secp256k1-sha256"
+
+// External functions declared as conditionally static (BL_STATIC_NO_TEST)
+extern "C" {
+bool validate_section_name(const char* str, size_t buf_size);
+bool validate_attributes(const uint8_t* attr_list, size_t buf_size);
+}
+
+// External variables
+extern "C" const bl_addr_t flash_emu_base;
+extern "C" uint8_t* flash_emu_buf;
+extern "C" size_t flash_emu_size;
 
 /// Reference payload
 static const uint8_t ref_payload[] = {
@@ -134,70 +145,6 @@ class FlashBuf {
 
   inline uint8_t& operator[](int index) { return flash_emu_buf[index]; }
 };
-
-/// Tracks progress reported by C functions
-class ProgressMonitor {
- public:
-  inline ProgressMonitor(bl_cbarg_t expected_arg)
-      : prev_total(-1),
-        prev_complete(-1),
-        expected_arg_(expected_arg),
-        check_status(false),
-        context_valid(true) {
-    if (!p_inst) {
-      p_inst = this;
-      blsect_set_progress_callback(ProgressMonitor::callback,
-                                   static_cast<void*>(this));
-    } else {
-      INFO("ERROR: progress monitor already created");
-      REQUIRE(false);  // Abort test
-    }
-  }
-
-  inline ~ProgressMonitor() {
-    p_inst = NULL;
-    blsect_set_progress_callback(NULL, NULL);
-  }
-
-  static void callback(void* ctx, bl_cbarg_t arg, uint32_t total,
-                       uint32_t complete) {
-    if (p_inst) {
-      if (p_inst->context_valid && ctx == (void*)p_inst) {
-        p_inst->check_args(arg, total, complete);
-      } else {
-        p_inst->context_valid = false;
-      }
-    } else {
-      INFO("ERROR: progress monitor not created");
-      REQUIRE(false);  // Abort test
-    }
-  }
-
-  inline bool is_complete() {
-    return context_valid && check_status && prev_complete == prev_total;
-  }
-
- private:
-  void check_args(bl_cbarg_t arg, uint32_t total, uint32_t complete) {
-    if (-1 == prev_total && -1 == prev_complete) {
-      check_status = (arg == expected_arg_ && total && complete <= total);
-    } else {
-      check_status =
-          (check_status && arg == expected_arg_ && total && complete <= total &&
-           total == prev_total && complete >= prev_complete);
-    }
-    prev_total = total;
-    prev_complete = complete;
-  }
-
-  int64_t prev_total;
-  int64_t prev_complete;
-  bl_cbarg_t expected_arg_;
-  bool check_status;
-  bool context_valid;
-  static ProgressMonitor* p_inst;
-};
-ProgressMonitor* ProgressMonitor::p_inst = NULL;
 
 void blsys_fatal_error(const char* text) {
   INFO(text);
@@ -373,7 +320,9 @@ TEST_CASE("Validate attributes") {
 
 TEST_CASE("Validate header") {
   SECTION("valid") {
-    SECTION("reference header") { REQUIRE(blsect_validate_header(&ref_header)); }
+    SECTION("reference header") {
+      REQUIRE(blsect_validate_header(&ref_header));
+    }
 
     SECTION("version: N/A") {
       bl_section_t hdr = ref_header;
@@ -474,7 +423,8 @@ TEST_CASE("Validate header") {
 
 TEST_CASE("Validate payload") {
   SECTION("valid, reference payload") {
-    REQUIRE(blsect_validate_payload(&ref_header, ref_payload, sizeof(ref_payload)));
+    REQUIRE(
+        blsect_validate_payload(&ref_header, ref_payload, sizeof(ref_payload)));
   }
 
   SECTION("invalid, empty payload") {
@@ -499,14 +449,15 @@ TEST_CASE("Validate payload") {
 
     hdr.pl_crc ^= 1U;
     REQUIRE_FALSE(blsect_validate_payload(correct_crc(&hdr), ref_payload,
-                                      sizeof(ref_payload)));
+                                          sizeof(ref_payload)));
   }
 }
 
 TEST_CASE("Validate payload from file") {
   SECTION("valid, reference payload") {
     ProgressMonitor monitor(12345U);
-    REQUIRE(blsect_validate_payload_from_file(&ref_header, PayloadFile(), 12345U));
+    REQUIRE(
+        blsect_validate_payload_from_file(&ref_header, PayloadFile(), 12345U));
     REQUIRE(monitor.is_complete());
   }
 
@@ -556,7 +507,8 @@ TEST_CASE("Validate payload from file") {
     pl_buf[9U * pl_size / 10U] ^= 1U;
 
     auto file = PayloadFile(pl_buf.get(), pl_size);
-    REQUIRE_FALSE(blsect_validate_payload_from_file(correct_crc(&hdr), file, 0U));
+    REQUIRE_FALSE(
+        blsect_validate_payload_from_file(correct_crc(&hdr), file, 0U));
   }
 
   SECTION("invalid, oversized payload") {
@@ -570,7 +522,8 @@ TEST_CASE("Validate payload from file") {
     hdr.pl_crc = crc32_fast(pl_buf.get(), pl_size, 0U);
     auto file = PayloadFile(pl_buf.get(), pl_size);
 
-    REQUIRE_FALSE(blsect_validate_payload_from_file(correct_crc(&hdr), file, 0U));
+    REQUIRE_FALSE(
+        blsect_validate_payload_from_file(correct_crc(&hdr), file, 0U));
   }
 }
 
@@ -578,7 +531,8 @@ TEST_CASE("Validate payload from flash") {
   SECTION("valid, reference payload") {
     auto flash = FlashBuf();
     ProgressMonitor monitor(3456U);
-    REQUIRE(blsect_validate_payload_from_flash(&ref_header, FLASH_EMU_BASE, 3456U));
+    REQUIRE(
+        blsect_validate_payload_from_flash(&ref_header, flash_emu_base, 3456U));
     REQUIRE(monitor.is_complete());
   }
 
@@ -587,8 +541,8 @@ TEST_CASE("Validate payload from flash") {
     auto flash = FlashBuf(NULL, offset + sizeof(ref_payload));
     memcpy((uint8_t*)flash + offset, ref_payload, sizeof(ref_payload));
     ProgressMonitor monitor(123456U);
-    REQUIRE(blsect_validate_payload_from_flash(&ref_header, FLASH_EMU_BASE + offset,
-                                           123456U));
+    REQUIRE(blsect_validate_payload_from_flash(
+        &ref_header, flash_emu_base + offset, 123456U));
     REQUIRE(monitor.is_complete());
   }
 
@@ -607,12 +561,12 @@ TEST_CASE("Validate payload from flash") {
     (void)correct_crc(&hdr);
 
     ProgressMonitor monitor(123456U);
-    REQUIRE(blsect_validate_payload_from_flash(&hdr, FLASH_EMU_BASE, 123456U));
+    REQUIRE(blsect_validate_payload_from_flash(&hdr, flash_emu_base, 123456U));
     REQUIRE(monitor.is_complete());
   }
 
   SECTION("invalid, NULL header") {
-    REQUIRE_FALSE(blsect_validate_payload_from_flash(NULL, FLASH_EMU_BASE, 0U));
+    REQUIRE_FALSE(blsect_validate_payload_from_flash(NULL, flash_emu_base, 0U));
   }
 
   SECTION("invalid, corrupted payload") {
@@ -632,7 +586,7 @@ TEST_CASE("Validate payload from flash") {
     // Corrupt payload
     flash[9U * pl_size / 10U] ^= 1U;
 
-    REQUIRE_FALSE(blsect_validate_payload_from_flash(&hdr, FLASH_EMU_BASE, 0U));
+    REQUIRE_FALSE(blsect_validate_payload_from_flash(&hdr, flash_emu_base, 0U));
   }
 }
 
@@ -685,8 +639,7 @@ TEST_CASE("Get integer attribute") {
     REQUIRE(0x6E29 == entry);
 
     // Invalid
-    REQUIRE_FALSE(
-        blsect_get_attr_uint(&hdr, (bl_attr_t)0xFE, &non_existent));
+    REQUIRE_FALSE(blsect_get_attr_uint(&hdr, (bl_attr_t)0xFE, &non_existent));
     REQUIRE(0xEEEEEEEEU == non_existent);
     REQUIRE_FALSE(blsect_get_attr_uint(NULL, bl_attr_base_addr, &tmp));
     REQUIRE_FALSE(blsect_get_attr_uint(&hdr, bl_attr_base_addr, NULL));
@@ -725,12 +678,11 @@ TEST_CASE("Get integer attribute") {
 
 TEST_CASE("Get string attribute") {
   SECTION("from reference header") {
-    const char buf_size = strlen(BL_DSA_SECP256K1_SHA256) + 1U;
+    const char buf_size = strlen(SECP256K1_SHA256) + 1U;
     char buf[buf_size];
 
-    REQUIRE(
-        blsect_get_attr_str(&ref_header, bl_attr_algorithm, buf, buf_size));
-    REQUIRE(streq(buf, BL_DSA_SECP256K1_SHA256));
+    REQUIRE(blsect_get_attr_str(&ref_header, bl_attr_algorithm, buf, buf_size));
+    REQUIRE(streq(buf, SECP256K1_SHA256));
     REQUIRE_FALSE(
         blsect_get_attr_str(&ref_header, (bl_attr_t)0xFE, buf, buf_size));
   }
@@ -765,8 +717,7 @@ TEST_CASE("Get string attribute") {
     REQUIRE(blsect_get_attr_str(&hdr, (bl_attr_t)0xA3, buf, sizeof(buf)));
     // Insert null character inside the string with identifier 0xA3
     hdr.attr_list[14] = '\0';
-    REQUIRE_FALSE(
-        blsect_get_attr_str(&hdr, (bl_attr_t)0xA3, buf, sizeof(buf)));
+    REQUIRE_FALSE(blsect_get_attr_str(&hdr, (bl_attr_t)0xA3, buf, sizeof(buf)));
   }
 }
 
@@ -791,4 +742,27 @@ TEST_CASE("Get version string") {
   REQUIRE_FALSE(blsect_version_to_str(BL_VERSION_MAX + 1U, buf, sizeof(buf)));
 }
 
-TEST_CASE("Get hash sentence from flash") {}
+TEST_CASE("Get hash sentence from flash") {
+  SECTION("valid, reference section") {
+    bl_hash_sentence_t hash;
+    FlashBuf flash;
+    ProgressMonitor monitor(12345U);
+
+    REQUIRE(blsect_hash_sentence_from_flash(&ref_header, flash_emu_base, &hash,
+                                            12345U));
+    REQUIRE(0 == memcmp(&hash, &ref_section_hash_sentence, sizeof(hash)));
+    REQUIRE(monitor.is_complete());
+  }
+
+  SECTION("invalid") {
+    bl_hash_sentence_t hash;
+    FlashBuf flash;
+    REQUIRE(blsect_hash_sentence_from_flash(&ref_header, flash_emu_base, &hash,
+                                            0U));
+    REQUIRE(0 == memcmp(&hash, &ref_section_hash_sentence, sizeof(hash)));
+    flash[0] ^= 1;
+    REQUIRE(blsect_hash_sentence_from_flash(&ref_header, flash_emu_base, &hash,
+                                            0U));
+    REQUIRE(0 != memcmp(&hash, &ref_section_hash_sentence, sizeof(hash)));
+  }
+}

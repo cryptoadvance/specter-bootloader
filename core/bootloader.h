@@ -48,20 +48,6 @@ typedef enum bl_status_t_ {
   bl_nstatuses                ///< Number of exit status items (not a status)
 } bl_status_t;
 
-/// Type of argument passed to callback functions
-typedef uintptr_t bl_cbarg_t;
-
-/**
- * Prototype for callback function called to report operation progress
- *
- * @param ctx          user-provided context
- * @param arg          user-provided argument
- * @param total        total number of steps
- * @param complete     number of complete steps
- */
-typedef void (*bl_cb_progress_t)(void* ctx, bl_cbarg_t arg, uint32_t total,
-                                 uint32_t complete);
-
 #ifdef __cplusplus
 extern "C" {
 #endif

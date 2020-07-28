@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "bootloader_private.h"
+#include "bl_util.h"
 #include "bl_syscalls.h"
 #include "ff.h"
 
@@ -76,7 +76,7 @@ bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,
   return bl_alert_terminated;
 }
 
-void blsys_progress(const char* caption, const char* operation,
-                    uint32_t n_total, uint32_t complete) {
+void blsys_progress(const char* caption, const char* operation, uint32_t total,
+                    uint32_t complete) {
   // TODO: implement
 }

@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "bootloader_private.h"
+#include "bl_util.h"
 #include "bl_syscalls.h"
 
 #ifdef WEAK
@@ -204,4 +204,4 @@ WEAK bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,
 }
 
 WEAK void blsys_progress(const char* caption, const char* operation,
-                         uint32_t n_total, uint32_t complete) {}
+                         uint32_t total, uint32_t complete) {}

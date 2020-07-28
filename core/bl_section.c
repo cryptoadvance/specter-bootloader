@@ -11,33 +11,22 @@
  * big-endian machines is not planned.
  */
 
+#include <string.h>
 #include "crc32.h"
+#include "sha2.h"
 #include "bl_section.h"
 #include "bl_util.h"
-#include "bootloader_private.h"
 
 /// Name used to identify signature section
 #define BL_SIGNATURE_SECT_NAME "sign"
-/// Size of public key fingerprint
-#define BL_PUBKEY_FP_SIZE BL_MEMBER_SIZE(bl_signature_rec_t, fingerprint)
 /// Size of statically allocated shared IO buffer
 #define IO_BUF_SIZE 512U
-
-/// Signature record contained in Signature section
-typedef struct BL_ATTRS((packed)) bl_signature_rec_t {
-  uint8_t fingerprint[16];  ///< Public key fingerprint
-  uint8_t signature[64];    ///< Signature: 64-byte compact signature
-} bl_signature_rec_t;
 
 /// Statically allocated contex
 static struct {
   // IO buffer
   uint8_t io_buf[IO_BUF_SIZE];
-  /// Callback function called to report progress of operations
-  bl_cb_progress_t cb_progress;
-  /// User-provided context for callback functions
-  void* cb_ctx;
-} ctx = {.cb_progress = NULL};
+} ctx;
 
 /**
  * Checks if given character is a digit
@@ -57,26 +46,6 @@ static inline bool is_letter(char chr) {
   return ((chr >= 'a' && chr <= 'z') || (chr >= 'A' && chr <= 'Z'));
 }
 
-void blsect_set_progress_callback(bl_cb_progress_t cb_progress,
-                                  void* user_ctx) {
-  ctx.cb_progress = cb_progress;
-  ctx.cb_ctx = user_ctx;
-}
-
-/**
- * Reports progress by calling a callback function if it is initialized
- *
- * @param arg       argument passed to callback function
- * @param total     total number of steps
- * @param complete  number of complete steps
- */
-static inline void report_progress(bl_cbarg_t arg, uint32_t total,
-                                   uint32_t complete) {
-  if (ctx.cb_progress) {
-    ctx.cb_progress(ctx.cb_ctx, arg, total, complete);
-  }
-}
-
 /**
  * Validates section name stored in a fixed-size buffer
  *
@@ -90,12 +59,12 @@ static inline void report_progress(bl_cbarg_t arg, uint32_t total,
  * @param buf_size  size of the buffer containing the string
  * @return          true if string is valid
  */
-static bool validate_section_name(const char* str, size_t buf_size) {
+BL_STATIC_NO_TEST bool validate_section_name(const char* str, size_t buf_size) {
   if (str && buf_size && is_letter(*str)) {
     for (const char* p_chr = str + 1U; p_chr < str + buf_size; ++p_chr) {
       if (!*p_chr) {
         // Check if remaining bytes are all zeroes
-        return bl_memvcmp(p_chr, 0, str + buf_size - p_chr);
+        return bl_memveq(p_chr, 0, str + buf_size - p_chr);
       }
       if (!is_letter(*p_chr) && !is_digit(*p_chr)) {
         return false;
@@ -116,7 +85,8 @@ static bool validate_section_name(const char* str, size_t buf_size) {
  * @param buf_size   size of the buffer containing attribute list
  * @return           true if attribute list is valid
  */
-static bool validate_attributes(const uint8_t* attr_list, size_t buf_size) {
+BL_STATIC_NO_TEST bool validate_attributes(const uint8_t* attr_list,
+                                           size_t buf_size) {
   if (attr_list && buf_size >= 2) {
     const uint8_t* p_list = attr_list;
     const uint8_t* p_end = attr_list + buf_size;
@@ -135,7 +105,7 @@ static bool validate_attributes(const uint8_t* attr_list, size_t buf_size) {
         p_list += size;
       } else if (p_list < p_end) {
         // Check if remaining bytes are all zeroes
-        return bl_memvcmp(p_list, 0, p_end - p_list);
+        return bl_memveq(p_list, 0, p_end - p_list);
       }
     }
     return true;
@@ -177,7 +147,7 @@ bool blsect_validate_payload_from_file(const bl_section_t* p_hdr,
     size_t rm_bytes = p_hdr->pl_size;
     uint32_t crc = 0U;
 
-    report_progress(progr_arg, p_hdr->pl_size, 0U);
+    bl_report_progress(progr_arg, p_hdr->pl_size, 0U);
     while (rm_bytes) {
       if (blsys_feof(file)) {
         return false;
@@ -189,7 +159,7 @@ bool blsect_validate_payload_from_file(const bl_section_t* p_hdr,
       }
       crc = crc32_fast(ctx.io_buf, read_len, crc);
       rm_bytes -= read_len;
-      report_progress(progr_arg, p_hdr->pl_size, p_hdr->pl_size - rm_bytes);
+      bl_report_progress(progr_arg, p_hdr->pl_size, p_hdr->pl_size - rm_bytes);
     }
     return crc == p_hdr->pl_crc;
   }
@@ -203,7 +173,7 @@ bool blsect_validate_payload_from_flash(const bl_section_t* p_hdr,
     bl_addr_t curr_addr = addr;
     uint32_t crc = 0U;
 
-    report_progress(progr_arg, p_hdr->pl_size, 0U);
+    bl_report_progress(progr_arg, p_hdr->pl_size, 0U);
     while (rm_bytes) {
       size_t read_len = (rm_bytes < IO_BUF_SIZE) ? rm_bytes : IO_BUF_SIZE;
       if (!blsys_flash_read(curr_addr, ctx.io_buf, read_len)) {
@@ -212,7 +182,7 @@ bool blsect_validate_payload_from_flash(const bl_section_t* p_hdr,
       crc = crc32_fast(ctx.io_buf, read_len, crc);
       curr_addr += read_len;
       rm_bytes -= read_len;
-      report_progress(progr_arg, p_hdr->pl_size, p_hdr->pl_size - rm_bytes);
+      bl_report_progress(progr_arg, p_hdr->pl_size, p_hdr->pl_size - rm_bytes);
     }
     return crc == p_hdr->pl_crc;
   }
@@ -344,6 +314,48 @@ bool blsect_version_to_str(uint32_t version, char* buf, size_t buf_size) {
       }
       return (res > 0);
     }
+  }
+  return false;
+}
+
+bool blsect_hash_sentence_from_flash(const bl_section_t* p_hdr,
+                                     bl_addr_t pl_addr,
+                                     bl_hash_sentence_t* p_result,
+                                     bl_cbarg_t progr_arg) {
+  const size_t sentence_size =
+      sizeof(p_hdr->name) + sizeof(p_hdr->pl_ver) + SHA256_DIGEST_LENGTH;
+
+  if (p_hdr && blsect_is_payload(p_hdr) && p_result &&
+      sentence_size == sizeof(p_result->bytes)) {
+    uint8_t* p_out = p_result->bytes;
+    // Copy section name
+    memcpy(p_out, p_hdr->name, sizeof(p_hdr->name));
+    p_out += sizeof(p_hdr->name);
+
+    // Copy payload version
+    memcpy(p_out, &p_hdr->pl_ver, sizeof(p_hdr->pl_ver));
+    p_out += sizeof(p_hdr->pl_ver);
+
+    // Calculate hash reading data from flash memory
+    size_t rm_bytes = p_hdr->pl_size;
+    bl_addr_t curr_addr = pl_addr;
+    SHA256_CTX context;
+    sha256_Init(&context);
+
+    sha256_Update(&context, (const uint8_t*)p_hdr, sizeof(bl_section_t));
+    bl_report_progress(progr_arg, p_hdr->pl_size, 0U);
+    while (rm_bytes) {
+      size_t read_len = (rm_bytes < IO_BUF_SIZE) ? rm_bytes : IO_BUF_SIZE;
+      if (!blsys_flash_read(curr_addr, ctx.io_buf, read_len)) {
+        return false;
+      }
+      sha256_Update(&context, ctx.io_buf, read_len);
+      curr_addr += read_len;
+      rm_bytes -= read_len;
+      bl_report_progress(progr_arg, p_hdr->pl_size, p_hdr->pl_size - rm_bytes);
+    }
+    sha256_Final(&context, p_out);
+    return true;
   }
   return false;
 }

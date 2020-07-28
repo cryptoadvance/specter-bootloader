@@ -9,33 +9,26 @@
 /// Avoids multiple inclusion of the same file
 #define BL_SECTION_H_INCLUDED
 
+#include "bl_util.h"
 #include "bl_syscalls.h"
-#include "sha2.h"
-
 /// Magic word, "SECT" in LE
 #define BL_SECT_MAGIC 0x54434553UL
 /// Structure revision
 #define BL_SECT_STRUCT_REV 1U
 /// Maximum allowed size of payload (16 megabytes)
 #define BL_PAYLOAD_SIZE_MAX (16U * 1024U * 1024U)
-/// Digital signature algorithm string: secp256k1-sha256
-#define BL_DSA_SECP256K1_SHA256 "secp256k1-sha256"
 /// Maximum allowed value ov version number
 #define BL_VERSION_MAX 4199999999U
 // Version is not available
 #define BL_VERSION_NA 0U
 /// Maximum size of version string including null character
 #define BL_VERSION_STR_MAX 16U
-/// Size of secp256k1 uncompressed public key
-#define BL_PUBKEY_SIZE 65U
 /// Size of SHA-256 output
 #define BL_HASH_SIZE 32U
 /// Size of hash sentence of a payload section
 #define BL_HASH_SENTENCE_SIZE                                                  \
   (BL_MEMBER_SIZE(bl_section_t, name) + BL_MEMBER_SIZE(bl_section_t, pl_ver) + \
    BL_HASH_SIZE)
-/// Return code, indicates failure of signature verification
-#define BL_VERIFICATION_FAIL -1
 
 /// Type of unsigned integer attribute
 typedef uint64_t bl_uint_t;
@@ -47,11 +40,14 @@ typedef enum bl_attr_t {
   bl_attr_entry_point = 3,  ///< Entry point of firmware
 } bl_attr_t;
 
-/// Section header
-///
-/// This structure has a fixed size of 256 bytes. All 32-bit words are stored in
-/// little-endian format. CRC is calculated over first 252 bytes of this
-/// structure.
+/**
+ * Section header
+ *
+ * This structure has a fixed size of 256 bytes. All 32-bit words are stored in
+ * little-endian format. CRC is calculated over first 252 bytes of this
+ * structure.
+ * @return typedef struct
+ */
 typedef struct BL_ATTRS((packed)) bl_section_t {
   uint32_t magic;          ///< Magic word, BL_SECT_MAGIC (“SECT” in LE)
   uint32_t struct_rev;     ///< Revision of structure format
@@ -63,11 +59,6 @@ typedef struct BL_ATTRS((packed)) bl_section_t {
   uint32_t struct_crc;     ///< CRC of this structure using LE representation
 } bl_section_t;
 
-/// Public key
-typedef struct BL_ATTRS((packed)) bl_pubkey_t {
-  uint8_t bytes[BL_PUBKEY_SIZE];
-} bl_pubkey_t;
-
 /// Hash sentence of a payload section
 typedef struct BL_ATTRS((packed)) bl_hash_sentence_t {
   uint8_t bytes[BL_HASH_SENTENCE_SIZE];
@@ -76,14 +67,6 @@ typedef struct BL_ATTRS((packed)) bl_hash_sentence_t {
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/**
- * Sets callback function which is called to report progress of operations
- *
- * @param cb_progress  pointer to callback function
- * @param user_ctx     user-provided context passed to callback function
- */
-void blsect_set_progress_callback(bl_cb_progress_t cb_progress, void* user_ctx);
 
 /**
  * Validates header of the section
@@ -199,33 +182,6 @@ bool blsect_hash_sentence_from_flash(const bl_section_t* p_hdr,
                                      bl_addr_t pl_addr,
                                      bl_hash_sentence_t* p_result,
                                      bl_cbarg_t progr_arg);
-
-/**
- * Performs verification of multiple signatures
- *
- * This function checks a number of signatures taking on input an array of
- * public keys and an array of hash sentences for each payload section of
- * the firmware. All hash sentences are concatenated and considered as "mesage",
- * used as input for the digital signature algorithm.
- *
- * Before the signature verification the function checks that there is no
- * duplicating records in the Signature section. If a duplication is detected,
- * the function fails returning BL_VERIFICATION_FAIL (negative number).
- *
- * @param p_sig_hdr   pointer to header of signature section, hast to be valid
- * @param sig_pl      pointer to contents of signature section (its payload)
- * @param pub_keys    buffer containing public keys
- * @param n_keys      number of public keys
- * @param message     message, an array of hash sentences from payload sections
- * @param n_sections  number of payload sections to verify
- * @param progr_arg   argument passed to progress callback function
- * @return            number of verified signatures, or BL_VERIFICATION_FAIL
- */
-int32_t blsect_verify_signatures(const bl_section_t* p_sig_hdr,
-                                 const uint8_t* sig_pl,
-                                 const bl_pubkey_t* pub_keys, size_t n_keys,
-                                 const bl_hash_sentence_t* message,
-                                 size_t n_sections, bl_cbarg_t progr_arg);
 
 #ifdef __cplusplus
 }  // extern "C"
