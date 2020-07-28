@@ -79,7 +79,8 @@ C_INCLUDES =  \
 -I$(LIB_DIR)/fatfs/source \
 -I$(LIB_DIR)/crypto \
 -I$(LIB_DIR)/secp256k1 \
--I$(LIB_DIR)/secp256k1/src
+-I$(LIB_DIR)/secp256k1/src \
+-I$(LIB_DIR)/secp256k1/include
 
 # C defines
 C_DEFS =  \
