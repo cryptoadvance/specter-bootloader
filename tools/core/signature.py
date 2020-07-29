@@ -93,13 +93,15 @@ def sign(message, seckey):
     """Signs a message with given private key."""
     _validate_seckey(seckey)
     _validate_message(message)
-    return secp256k1.ecdsa_sign(_sha256(message), _to_bytes(seckey))
+    sig_obj = secp256k1.ecdsa_sign(_sha256(message), _to_bytes(seckey))
+    return secp256k1.ecdsa_signature_serialize_compact(sig_obj)
 
 def verify(signature, message, pubkey):
     """Verifies signature of a message with given public key."""
     _validate_signature(signature)
     _validate_message(message)
     _validate_pubkey(pubkey)
-    pubkey_ext = secp256k1.ec_pubkey_parse(_to_bytes(pubkey))
+    pubkey_obj = secp256k1.ec_pubkey_parse(_to_bytes(pubkey))
+    sig_obj = secp256k1.ecdsa_signature_parse_compact(_to_bytes(signature))
     hashcode = _sha256(message)
-    return secp256k1.ecdsa_verify(_to_bytes(signature), hashcode, pubkey_ext)
+    return secp256k1.ecdsa_verify(sig_obj, hashcode, pubkey_obj)
