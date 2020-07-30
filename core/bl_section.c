@@ -172,16 +172,16 @@ bool blsect_validate_payload_from_flash(const bl_section_t* p_hdr,
     size_t rm_bytes = p_hdr->pl_size;
     bl_addr_t curr_addr = addr;
     uint32_t crc = 0U;
+    const size_t crc_block_size = 4096U;  // Size of processed block
 
     bl_report_progress(progr_arg, p_hdr->pl_size, 0U);
     while (rm_bytes) {
-      size_t read_len = (rm_bytes < IO_BUF_SIZE) ? rm_bytes : IO_BUF_SIZE;
-      if (!blsys_flash_read(curr_addr, ctx.io_buf, read_len)) {
+      size_t proc_len = (rm_bytes < crc_block_size) ? rm_bytes : crc_block_size;
+      if (!blsys_flash_crc32(&crc, curr_addr, proc_len)) {
         return false;
       }
-      crc = crc32_fast(ctx.io_buf, read_len, crc);
-      curr_addr += read_len;
-      rm_bytes -= read_len;
+      curr_addr += proc_len;
+      rm_bytes -= proc_len;
       bl_report_progress(progr_arg, p_hdr->pl_size, p_hdr->pl_size - rm_bytes);
     }
     return crc == p_hdr->pl_crc;

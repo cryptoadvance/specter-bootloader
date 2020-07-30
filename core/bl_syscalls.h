@@ -149,6 +149,20 @@ bool blsys_flash_read(bl_addr_t addr, uint8_t* buf, size_t len);
 bool blsys_flash_write(bl_addr_t addr, const uint8_t* buf, size_t len);
 
 /**
+ * Calculates CRC32 over a block of data from flash memory
+ *
+ * To increase the speed it is recommended to use direct access to flash memory
+ * if it's memory-mapped on the target platform.
+ *
+ * @param p_crc  pointer to variable containing initial value of CRC, filled
+ *               with updated CRC value on return
+ * @param addr   source address in flash memory
+ * @param len    number of bytes to read
+ * @return       true if successful
+ */
+bool blsys_flash_crc32(uint32_t* p_crc, bl_addr_t addr, size_t len);
+
+/**
  * Returns a number of media devices searched for upgrade files
  *
  * The bootloader uses returned value to scan all available devices sequentially

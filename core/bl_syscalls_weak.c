@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "crc32.h"
 #include "bl_util.h"
 #include "bl_syscalls.h"
 
@@ -30,6 +31,26 @@ WEAK bool blsys_flash_read(bl_addr_t addr, uint8_t* buf, size_t len) {
 }
 
 WEAK bool blsys_flash_write(bl_addr_t addr, const uint8_t* buf, size_t len) {
+  return false;
+}
+
+WEAK bool blsys_flash_crc32(uint32_t* p_crc, bl_addr_t addr, size_t len) {
+  if (p_crc && len) {
+    uint8_t buf[128];
+    size_t rm_bytes = len;
+    bl_addr_t curr_addr = addr;
+
+    while (rm_bytes) {
+      size_t read_len = (rm_bytes < sizeof(buf)) ? rm_bytes : sizeof(buf);
+      if (!blsys_flash_read(curr_addr, buf, read_len)) {
+        return false;
+      }
+      *p_crc = crc32_fast(buf, read_len, *p_crc);
+      curr_addr += read_len;
+      rm_bytes -= read_len;
+    }
+    return true;
+  }
   return false;
 }
 
