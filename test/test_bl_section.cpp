@@ -8,6 +8,7 @@
 #include "catch2/catch.hpp"
 #include "crc32.h"
 #include "progress_monitor.hpp"
+#include "flash_buf.hpp"
 #include "bl_section.h"
 
 /// Digital signature algorithm string: secp256k1-sha256
@@ -18,11 +19,6 @@ extern "C" {
 bool validate_section_name(const char* str, size_t buf_size);
 bool validate_attributes(const uint8_t* attr_list, size_t buf_size);
 }
-
-// External variables
-extern "C" const bl_addr_t flash_emu_base;
-extern "C" uint8_t* flash_emu_buf;
-extern "C" size_t flash_emu_size;
 
 /// Reference payload
 static const uint8_t ref_payload[] = {
@@ -112,38 +108,6 @@ class PayloadFile {
 
  private:
   FILE* fd;
-};
-
-/// Emulates flash memory using buffer in RAM
-class FlashBuf {
- public:
-  inline FlashBuf(const uint8_t* pl_buf = ref_payload,
-                  uint32_t pl_size = sizeof(ref_payload)) {
-    if (!flash_emu_buf) {
-      flash_emu_buf = new uint8_t[pl_size];
-      flash_emu_size = pl_size;
-      if (pl_buf) {
-        memcpy(flash_emu_buf, pl_buf, pl_size);
-      } else {
-        memset(flash_emu_buf, 0xFF, pl_size);
-      }
-    } else {
-      INFO("ERROR: flash emulation buffer already created");
-      REQUIRE(false);  // Abort test
-    }
-  }
-
-  inline ~FlashBuf() {
-    if (flash_emu_buf) {
-      delete flash_emu_buf;
-      flash_emu_buf = NULL;
-      flash_emu_size = 0U;
-    }
-  }
-
-  inline operator uint8_t*() const { return flash_emu_buf; }
-
-  inline uint8_t& operator[](int index) { return flash_emu_buf[index]; }
 };
 
 /**
@@ -523,7 +487,7 @@ TEST_CASE("Validate payload from file") {
 
 TEST_CASE("Validate payload from flash") {
   SECTION("valid, reference payload") {
-    auto flash = FlashBuf();
+    auto flash = FlashBuf(ref_payload, sizeof(ref_payload));
     ProgressMonitor monitor(3456U);
     REQUIRE(
         blsect_validate_payload_from_flash(&ref_header, flash_emu_base, 3456U));
@@ -739,7 +703,7 @@ TEST_CASE("Get version string") {
 TEST_CASE("Get hash sentence from flash") {
   SECTION("valid, reference section") {
     bl_hash_sentence_t hash;
-    FlashBuf flash;
+    FlashBuf flash(ref_payload, sizeof(ref_payload));
     ProgressMonitor monitor(12345U);
 
     REQUIRE(blsect_hash_sentence_from_flash(&ref_header, flash_emu_base, &hash,
@@ -750,7 +714,7 @@ TEST_CASE("Get hash sentence from flash") {
 
   SECTION("invalid") {
     bl_hash_sentence_t hash;
-    FlashBuf flash;
+    FlashBuf flash(ref_payload, sizeof(ref_payload));
     REQUIRE(blsect_hash_sentence_from_flash(&ref_header, flash_emu_base, &hash,
                                             0U));
     REQUIRE(0 == memcmp(&hash, &ref_section_hash_sentence, sizeof(hash)));
