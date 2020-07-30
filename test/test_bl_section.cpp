@@ -146,12 +146,6 @@ class FlashBuf {
   inline uint8_t& operator[](int index) { return flash_emu_buf[index]; }
 };
 
-void blsys_fatal_error(const char* text) {
-  INFO(text);
-  REQUIRE(false);  // Aborts test
-  exit(1);
-}
-
 /**
  * Tests two strings for equality
  *
