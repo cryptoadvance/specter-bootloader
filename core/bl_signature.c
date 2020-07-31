@@ -120,7 +120,7 @@ BL_STATIC_NO_TEST const bl_pubkey_t* find_pubkey(
 /**
  * Verifies signature using "secp256k1-sha256" algorithm
  *
- * @param verify_ctx   a secp256k1 context object, initialized for verification
+ * @param verify_ctx   secp256k1 context object, initialized for verification
  * @param p_sig        pointer to signature
  * @param message      message to be verified
  * @param message_len  length of the message in bytes
@@ -138,7 +138,7 @@ BL_STATIC_NO_TEST bool verify_signature(secp256k1_context* verify_ctx,
     uint8_t digest[SHA256_DIGEST_LENGTH];
     sha256_Raw(message, message_len, digest);
 
-    // Parse public key
+    // Parse the public key
     secp256k1_pubkey pubkey_obj;
     bool valid = (1 == secp256k1_ec_pubkey_parse(verify_ctx, &pubkey_obj,
                                                  p_pubkey->bytes,
@@ -174,7 +174,7 @@ BL_STATIC_NO_TEST secp256k1_context* create_verify_ctx(void) {
 /**
  * Destroys a secp256k1 context object
  *
- * @param verify_ctx  a secp256k1 context object
+ * @param verify_ctx  secp256k1 context object
  */
 BL_STATIC_NO_TEST void destroy_verify_ctx(secp256k1_context* verify_ctx) {
   if (verify_ctx) {
@@ -185,7 +185,7 @@ BL_STATIC_NO_TEST void destroy_verify_ctx(secp256k1_context* verify_ctx) {
 /**
  * Performs verification of multiple signatures using secp256k1-sha256 algorithm
  *
- * @param verify_ctx   a secp256k1 context object, initialized for verification
+ * @param verify_ctx   secp256k1 context object, initialized for verification
  * @param sig_pl       pointer to contents of Signature section (its payload)
  * @param sig_pl_size  size of the contents of Signature section in bytes
  * @param pubkeys      buffer containing list of public keys
