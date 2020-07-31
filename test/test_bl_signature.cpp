@@ -41,7 +41,7 @@ void destroy_verify_ctx(secp256k1_context* verify_ctx);
 }
 
 // Reference public key, 65 bytes
-const bl_pubkey_t ref_pubkey = {
+static const bl_pubkey_t ref_pubkey = {
     .bytes = {0x04, 0x0b, 0x61, 0x6d, 0x40, 0x3d, 0x49, 0x56, 0xe6, 0xab, 0x00,
               0x7a, 0x36, 0xe2, 0xa7, 0xa5, 0x73, 0x19, 0xfa, 0x82, 0x36, 0x19,
               0x77, 0xbb, 0x30, 0x73, 0x80, 0xfa, 0x43, 0xff, 0x8f, 0x83, 0x26,
@@ -50,11 +50,11 @@ const bl_pubkey_t ref_pubkey = {
               0xf2, 0x9f, 0x5b, 0x81, 0xe0, 0xc9, 0x02, 0xc6, 0x5e, 0x21}};
 
 // Fingerprint of the reference public key, 16 bytes + '\0'
-const uint8_t ref_pubkey_fp_bytes[] =
+static const uint8_t ref_pubkey_fp_bytes[] =
     "\x05v\xc1\xa9\x0e\x1c\x90\x15V:(<{\xb7\xe0\xf8";
 
 // Reference message. Terminating null character should be ignored.
-const uint8_t ref_message_str[] =
+static const uint8_t ref_message_str[] =
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed "
     "ornare tincidunt pharetra. Mauris at molestie quam, et "
     "placerat justo. Aenean maximus quam tortor, vel pellentesque "
@@ -66,13 +66,13 @@ const uint8_t ref_message_str[] =
 // Compact 64-byte signature of the reference message (no terminating
 // null-character) using a private key paired with the reference public key.
 // Terminating null character of the signature should be ignored.
-const uint8_t ref_signature[BL_MEMBER_SIZE(signature_t, bytes) + 1] =
+static const uint8_t ref_signature[BL_MEMBER_SIZE(signature_t, bytes) + 1] =
     "g\x82-Nf$\x83\xdf\x02\xd7\xf7\x98m[|\xdb\x80\xbf\xca\xb4-\xce\xb0\xe8\xf7"
     "\xc8q9\xb3'\xd4\xa2-\xcb\x1e[\xbe\xc4#F\xff\x1e\xa9Q\xb1\xc3\x07\xac@\xa8"
     "\x44\xb3\x84\xd7\xa1\x0e\xc6\xf4\x44\x97\xe7\xac\xe7}";
 
 // Reference list of public keys
-const bl_pubkey_t ref_multisig_pubkeys[REF_N_PUBKEYS] = {
+static const bl_pubkey_t ref_multisig_pubkeys[REF_N_PUBKEYS] = {
     {.bytes = {0x04, 0x8C, 0x28, 0xA9, 0x7B, 0xF8, 0x29, 0x8B, 0xC0, 0xD2, 0x3D,
                0x8C, 0x74, 0x94, 0x52, 0xA3, 0x2E, 0x69, 0x4B, 0x65, 0xE3, 0x0A,
                0x94, 0x72, 0xA3, 0x95, 0x4A, 0xB3, 0x0F, 0xE5, 0x32, 0x4C, 0xAA,
@@ -93,7 +93,7 @@ const bl_pubkey_t ref_multisig_pubkeys[REF_N_PUBKEYS] = {
                0xAF, 0x49, 0x38, 0x4B, 0x49, 0x2F, 0x2A, 0xA3, 0x61, 0x43}}};
 
 // The reference contents of Signature section (signature records)
-const signature_rec_t ref_multisig_sigrecs[REF_N_SIGS] = {
+static const signature_rec_t ref_multisig_sigrecs[REF_N_SIGS] = {
     {.fingerprint = {0x73, 0x1A, 0x17, 0xCF, 0x38, 0xA0, 0xC0, 0xD3, 0xBB, 0x92,
                      0x32, 0xCD, 0x47, 0x32, 0x03, 0x77},
      .signature = {0x33, 0xD4, 0xF5, 0xE9, 0xDE, 0x43, 0x28, 0x00, 0xB4, 0xB0,
