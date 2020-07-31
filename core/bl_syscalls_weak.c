@@ -26,11 +26,11 @@ WEAK bool blsys_flash_map_get_items(int items, ...) { return false; }
 
 WEAK bool blsys_flash_erase(bl_addr_t addr, size_t size) { return false; }
 
-WEAK bool blsys_flash_read(bl_addr_t addr, uint8_t* buf, size_t len) {
+WEAK bool blsys_flash_read(bl_addr_t addr, void* buf, size_t len) {
   return false;
 }
 
-WEAK bool blsys_flash_write(bl_addr_t addr, const uint8_t* buf, size_t len) {
+WEAK bool blsys_flash_write(bl_addr_t addr, const void* buf, size_t len) {
   return false;
 }
 

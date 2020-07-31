@@ -57,7 +57,7 @@ bool bl_icr_create(bl_addr_t sect_addr, uint32_t sect_size, uint32_t pl_size,
     bl_integrity_check_rec_t icr;
     bl_addr_t icr_addr = sect_addr + sect_size - BL_ICR_SIZE;
     if (icr_struct_create_main(&icr, sect_addr, sect_size, pl_size, pl_ver)) {
-      return blsys_flash_write(icr_addr, (const uint8_t*)&icr, sizeof(icr));
+      return blsys_flash_write(icr_addr, &icr, sizeof(icr));
     }
   }
   return false;
@@ -101,7 +101,7 @@ bool bl_icr_verify(bl_addr_t sect_addr, uint32_t sect_size,
   if (sect_size) {
     bl_integrity_check_rec_t icr;
     bl_addr_t icr_addr = sect_addr + sect_size - BL_ICR_SIZE;
-    if (blsys_flash_read(icr_addr, (uint8_t*)&icr, sizeof(icr))) {
+    if (blsys_flash_read(icr_addr, &icr, sizeof(icr))) {
       return icr_verify_main(&icr, sect_addr, p_pl_ver);
     }
   }

@@ -35,12 +35,12 @@ bool blsys_flash_erase(bl_addr_t addr, size_t size) {
   return false;
 }
 
-bool blsys_flash_read(bl_addr_t addr, uint8_t* buf, size_t len) {
+bool blsys_flash_read(bl_addr_t addr, void* buf, size_t len) {
   // TODO: implement
   return false;
 }
 
-bool blsys_flash_write(bl_addr_t addr, const uint8_t* buf, size_t len) {
+bool blsys_flash_write(bl_addr_t addr, const void* buf, size_t len) {
   // TODO: implement
   return false;
 }

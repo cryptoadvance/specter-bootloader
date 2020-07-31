@@ -111,7 +111,7 @@ bool blsys_flash_erase(bl_addr_t addr, size_t size) {
   return false;
 }
 
-bool blsys_flash_read(bl_addr_t addr, uint8_t* buf, size_t len) {
+bool blsys_flash_read(bl_addr_t addr, void* buf, size_t len) {
   if (flash_emu_buf && buf && check_flash_area(addr, len)) {
     size_t offset = addr - FLASH_EMU_BASE;
     memcpy(buf, flash_emu_buf + offset, len);
@@ -120,7 +120,7 @@ bool blsys_flash_read(bl_addr_t addr, uint8_t* buf, size_t len) {
   return false;
 }
 
-bool blsys_flash_write(bl_addr_t addr, const uint8_t* buf, size_t len) {
+bool blsys_flash_write(bl_addr_t addr, const void* buf, size_t len) {
   if (flash_emu_buf && buf && check_flash_area(addr, len)) {
     size_t offset = addr - FLASH_EMU_BASE;
     memcpy(flash_emu_buf + offset, buf, len);
