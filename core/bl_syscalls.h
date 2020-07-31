@@ -23,6 +23,8 @@
 
 /// Infinite time
 #define BL_FOREVER UINT32_MAX
+/// Maximum possible value stored in bl_addr_t
+#define BL_ADDR_MAX UINTPTR_MAX
 
 /// Type for absolute address in memory
 typedef uintptr_t bl_addr_t;
