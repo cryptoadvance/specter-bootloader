@@ -53,7 +53,7 @@ extern "C" {
  * @param len   length of compared memory blocks
  * @return      true if memory blocks are equal
  */
-static inline bool bl_memeq(const uint8_t* mema, const uint8_t* memb,
+static inline bool bl_memeq(const void* mema, const void* memb,
                             size_t len) {
   if (mema && memb && len) {
     return 0 == memcmp(mema, memb, len);
