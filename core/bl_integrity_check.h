@@ -72,6 +72,16 @@ bool bl_icr_create(bl_addr_t sect_addr, uint32_t sect_size, uint32_t pl_size,
  */
 bool bl_icr_verify(bl_addr_t sect_addr, uint32_t sect_size, uint32_t* p_pl_ver);
 
+/**
+ * Returns version from an integrity check record without actual integrity check
+ *
+ * @param sect_addr  address of section in flash memory
+ * @param sect_size  full size of section in flash memory
+ * @param p_pl_ver   pointer to variable receiving payload version
+ * @return           true if section contains valid payload
+ */
+bool bl_icr_get_version(bl_addr_t sect_addr, uint32_t sect_size, uint32_t* p_pl_ver);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

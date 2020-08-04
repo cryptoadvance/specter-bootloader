@@ -17,8 +17,8 @@ extern "C" {
 bool icr_struct_create_main(bl_integrity_check_rec_t* p_icr,
                             bl_addr_t main_addr, uint32_t main_size,
                             uint32_t pl_size, uint32_t pl_ver);
-bool icr_verify_main(const bl_integrity_check_rec_t* p_icr, bl_addr_t main_addr,
-                     uint32_t* p_pl_ver);
+bool icr_verify_main(const bl_integrity_check_rec_t* p_icr,
+                     bl_addr_t main_addr);
 }
 
 /// Reference payload
@@ -43,24 +43,22 @@ TEST_CASE("Integrity check record: internals") {
   REQUIRE(icr.struct_crc ==
           crc32_fast(&icr, offsetof(bl_integrity_check_rec_t, struct_crc), 0U));
   REQUIRE(icr.pl_ver == ref_version);
-  uint32_t version = 0U;
-  REQUIRE(icr_verify_main(&icr, flash.base(), &version));
-  REQUIRE(version == ref_version);
+  REQUIRE(icr_verify_main(&icr, flash.base()));
 
   // Corrupted structure
   icr.main_sect.pl_size ^= 1U;
-  REQUIRE_FALSE(icr_verify_main(&icr, flash.base(), NULL));
+  REQUIRE_FALSE(icr_verify_main(&icr, flash.base()));
   icr.main_sect.pl_size ^= 1U;
-  REQUIRE(icr_verify_main(&icr, flash.base(), NULL));
+  REQUIRE(icr_verify_main(&icr, flash.base()));
 
   // Corrupted payload
   flash[flash.pl_size() - 1] ^= 1U;
-  REQUIRE_FALSE(icr_verify_main(&icr, flash.base(), NULL));
+  REQUIRE_FALSE(icr_verify_main(&icr, flash.base()));
   flash[flash.pl_size() - 1] ^= 1U;
-  REQUIRE(icr_verify_main(&icr, flash.base(), NULL));
+  REQUIRE(icr_verify_main(&icr, flash.base()));
 
   // Wrong arguments of icr_verify_main()
-  REQUIRE_FALSE(icr_verify_main(NULL, flash.base(), NULL));
+  REQUIRE_FALSE(icr_verify_main(NULL, flash.base()));
 
   // Wrong arguments of icr_struct_create_main()
   REQUIRE_FALSE(icr_struct_create_main(NULL, flash.base(), flash.size(),
@@ -81,6 +79,11 @@ TEST_CASE("Integrity check record") {
   REQUIRE(bl_icr_verify(flash.base(), flash.size(), &version));
   REQUIRE(version == ref_version);
 
+  // Valid, read the version without verification
+  version = 0U;
+  REQUIRE(bl_icr_get_version(flash.base(), flash.size(), &version));
+  REQUIRE(version == ref_version);
+
   // Corrupted payload
   flash[flash.pl_size() - 1] ^= 1U;
   REQUIRE_FALSE(bl_icr_verify(flash.base(), flash.size(), NULL));
@@ -89,6 +92,10 @@ TEST_CASE("Integrity check record") {
 
   // Wrong argument of bl_icr_verify()
   REQUIRE_FALSE(bl_icr_verify(flash.base(), 0U, NULL));
+
+  // Wrong argument of bl_icr_get_version()
+  REQUIRE_FALSE(bl_icr_get_version(flash.base(), 0U, &version));
+  REQUIRE_FALSE(bl_icr_get_version(flash.base(), flash.size(), NULL));
 
   // Wrong argument of bl_icr_create()
   REQUIRE_FALSE(
