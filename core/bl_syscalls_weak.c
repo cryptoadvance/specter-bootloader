@@ -56,6 +56,11 @@ WEAK bool blsys_flash_crc32(uint32_t* p_crc, bl_addr_t addr, size_t len) {
 
 WEAK uint32_t blsys_media_devices(void) { return 1U; }
 
+WEAK const char* blsys_media_name(uint32_t device_idx) {
+  static const char* unknown = "unknown";
+  return unknown;
+}
+
 WEAK bool blsys_media_check(uint32_t device_idx) {
   return (0U == device_idx) ? true : false;
 }

@@ -175,9 +175,17 @@ bool blsys_flash_crc32(uint32_t* p_crc, bl_addr_t addr, size_t len);
 uint32_t blsys_media_devices(void);
 
 /**
+ * Returns name of media device
+ *
+ * @param device_idx  zero-based index of media device
+ * @return            constant null-terminated string, always valid and non-NULL
+ */
+const char* blsys_media_name(uint32_t device_idx);
+
+/**
  * Checks if external media is available for mounting
  *
- * @param device_idx  index of media device
+ * @param device_idx  zero-based index of media device
  * @return            true if media device is available to mount (e.g. inserted)
  */
 bool blsys_media_check(uint32_t device_idx);
@@ -185,15 +193,16 @@ bool blsys_media_check(uint32_t device_idx);
 /**
  * Mounts an external media device
  *
- * @param device_idx  index of media device
+ * @param device_idx  zero-based index of media device
  * @return            true if successful
  */
 bool blsys_media_mount(uint32_t device_idx);
 
 /**
- * Unmounts currently mounted external media device
+ * Unmounts currently mounted external media device (if any)
  *
- * @return            true if successful
+ * NOTE: The Bootloader calls this function as a part of exit cleanup, even if
+ * no media was mounted ever. This should not have any bad consequences.
  */
 void blsys_media_umount(void);
 
