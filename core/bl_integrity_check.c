@@ -11,6 +11,7 @@
 #include "bl_integrity_check.h"
 #include "bl_util.h"
 #include "bl_syscalls.h"
+#include "bl_section.h"
 
 // Magic word, "INTG" in LE
 #define BL_ICR_MAGIC 0x47544E49UL
@@ -72,7 +73,8 @@ bool bl_icr_create(bl_addr_t sect_addr, uint32_t sect_size, uint32_t pl_size,
 static bool icr_validate(const bl_integrity_check_rec_t* p_icr) {
   if (p_icr) {
     if (BL_ICR_MAGIC == p_icr->magic &&
-        BL_ICR_STRUCT_REV == p_icr->struct_rev) {
+        BL_ICR_STRUCT_REV == p_icr->struct_rev &&
+        p_icr->pl_ver <= BL_VERSION_MAX) {
       uint32_t crc = crc32_fast(p_icr, ICR_CRC_CHECKED_SIZE, 0U);
       return (crc == p_icr->struct_crc);
     }
@@ -122,6 +124,9 @@ static bool icr_get(bl_integrity_check_rec_t* p_icr, bl_addr_t sect_addr,
 bool bl_icr_verify(bl_addr_t sect_addr, uint32_t sect_size,
                    uint32_t* p_pl_ver) {
   if (sect_size) {
+    if (p_pl_ver) {
+      *p_pl_ver = BL_VERSION_NA;
+    }
     bl_integrity_check_rec_t icr;
     if (icr_get(&icr, sect_addr, sect_size) &&
         icr_verify_main(&icr, sect_addr)) {
@@ -137,6 +142,7 @@ bool bl_icr_verify(bl_addr_t sect_addr, uint32_t sect_size,
 bool bl_icr_get_version(bl_addr_t sect_addr, uint32_t sect_size,
                         uint32_t* p_pl_ver) {
   if (sect_size && p_pl_ver) {
+    *p_pl_ver = BL_VERSION_NA;
     bl_integrity_check_rec_t icr;
     if (icr_get(&icr, sect_addr, sect_size)) {
       *p_pl_ver = icr.pl_ver;
