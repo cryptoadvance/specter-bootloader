@@ -272,15 +272,14 @@ static void console_erase(int n_chr) {
   }
 }
 
-void blsys_progress(const char* caption, const char* operation, uint32_t total,
-                    uint32_t complete) {
+void blsys_progress(const char* caption, const char* operation,
+                    uint32_t percent_x100) {
   if (caption && operation) {
     const size_t buf_size = strlen(caption) + strlen(operation) + 100U;
     char* str_buf = malloc(buf_size);
     if (str_buf) {
-      uint64_t progress = (uint64_t)complete * 100U / total;
-      int n_chr = snprintf(str_buf, buf_size, "%s: %s - %3u%%", caption,
-                           operation, (unsigned int)progress);
+      int n_chr = snprintf(str_buf, buf_size, "%s: %s - %3.2f%%", caption,
+                           operation, (double)percent_x100 / 100.0);
       if (n_chr > 0) {
         console_erase(progress_n_chr);
         printf(progress_n_chr > 0 ? "%s" : "\n%s", str_buf);
