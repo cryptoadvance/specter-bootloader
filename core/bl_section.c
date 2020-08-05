@@ -130,12 +130,10 @@ bool blsect_validate_header(const bl_section_t* p_hdr) {
   return false;
 }
 
-bool blsect_validate_payload(const bl_section_t* p_hdr, const uint8_t* pl_buf,
-                             uint32_t pl_size) {
-  if (p_hdr && pl_buf && pl_size && pl_size <= BL_PAYLOAD_SIZE_MAX) {
-    if (p_hdr->pl_size == pl_size) {
-      return p_hdr->pl_crc == crc32_fast(pl_buf, pl_size, 0U);
-    }
+bool blsect_validate_payload(const bl_section_t* p_hdr, const uint8_t* pl_buf) {
+  if (p_hdr && pl_buf && p_hdr->pl_size &&
+      p_hdr->pl_size <= BL_PAYLOAD_SIZE_MAX) {
+    return p_hdr->pl_crc == crc32_fast(pl_buf, p_hdr->pl_size, 0U);
   }
   return false;
 }

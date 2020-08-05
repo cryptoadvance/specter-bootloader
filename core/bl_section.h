@@ -81,11 +81,9 @@ bool blsect_validate_header(const bl_section_t* p_hdr);
  *
  * @param p_hdr      pointer to header, assumed to be valid
  * @param pl_buf     buffer containing payload
- * @param pl_size    size occupied by payload in the given buffer
  * @return           true if paylad is valid
  */
-bool blsect_validate_payload(const bl_section_t* p_hdr, const uint8_t* pl_buf,
-                             uint32_t pl_size);
+bool blsect_validate_payload(const bl_section_t* p_hdr, const uint8_t* pl_buf);
 
 /**
  * Validates payload reading it from file

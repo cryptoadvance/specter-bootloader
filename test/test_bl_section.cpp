@@ -381,33 +381,33 @@ TEST_CASE("Validate header") {
 
 TEST_CASE("Validate payload") {
   SECTION("valid, reference payload") {
-    REQUIRE(
-        blsect_validate_payload(&ref_header, ref_payload, sizeof(ref_payload)));
+    REQUIRE(blsect_validate_payload(&ref_header, ref_payload));
   }
 
   SECTION("invalid, empty payload") {
-    REQUIRE_FALSE(blsect_validate_payload(&ref_header, ref_payload, 0U));
+    bl_section_t header = ref_header;
+    header.pl_size = 0U;
+    REQUIRE_FALSE(blsect_validate_payload(&header, ref_payload));
   }
 
   SECTION("invalid, NULL payload") {
-    REQUIRE_FALSE(blsect_validate_payload(&ref_header, NULL, 12345U));
+    REQUIRE_FALSE(blsect_validate_payload(&ref_header, NULL));
   }
 
   SECTION("invalid, broken payload") {
     uint8_t pl[sizeof(ref_payload)];
     memcpy(pl, ref_payload, sizeof(pl));
-    REQUIRE(blsect_validate_payload(&ref_header, pl, sizeof(pl)));
+    REQUIRE(blsect_validate_payload(&ref_header, pl));
     pl[sizeof(pl) - 1U] ^= 1U;
-    REQUIRE_FALSE(blsect_validate_payload(&ref_header, pl, sizeof(pl)));
+    REQUIRE_FALSE(blsect_validate_payload(&ref_header, pl));
   }
 
   SECTION("invalid, broken CRC") {
     bl_section_t hdr = ref_header;
-    REQUIRE(blsect_validate_payload(&hdr, ref_payload, sizeof(ref_payload)));
+    REQUIRE(blsect_validate_payload(&hdr, ref_payload));
 
     hdr.pl_crc ^= 1U;
-    REQUIRE_FALSE(blsect_validate_payload(correct_crc(&hdr), ref_payload,
-                                          sizeof(ref_payload)));
+    REQUIRE_FALSE(blsect_validate_payload(correct_crc(&hdr), ref_payload));
   }
 }
 
