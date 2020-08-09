@@ -3,23 +3,23 @@
 
 """Upgrade file generator"""
 
-__author__    = "Mike Tolkachev <contact@miketolkachev.dev>"
-__copyright__ = "Copyright 2020 Crypto Advance GmbH. All rights reserved"
-__version__   = "1.0.0"
-
-from core.blsection import *
-import core.signature as sig
-
-import click
-from tqdm import tqdm
-from intelhex import IntelHex
 import getpass
+from intelhex import IntelHex
+from tqdm import tqdm
+import click
+import core.signature as sig
+from core.blsection import *
+__author__ = "Mike Tolkachev <contact@miketolkachev.dev>"
+__copyright__ = "Copyright 2020 Crypto Advance GmbH. All rights reserved"
+__version__ = "1.0.0"
+
 
 @click.group()
 @click.version_option(__version__, message="%(version)s")
-#@click.command(no_args_is_help=True)
+# @click.command(no_args_is_help=True)
 def cli():
     """Upgrade file generator."""
+
 
 @cli.command(
     'gen',
@@ -43,13 +43,19 @@ def cli():
     help='Private key in PEM container.',
     metavar='<file.pem>'
 )
+@click.option(
+    '-p', '--platform',
+    type=str,
+    help='Platform identifier, i.e. stm32f469disco.',
+    metavar='<platform>'
+)
 @click.argument(
     'upgrade_file',
     required=True,
     type=click.File('wb'),
     metavar='<upgrade_file.bin>'
 )
-def generate(upgrade_file, bootloader_hex, firmware_hex, key_pem):
+def generate(upgrade_file, bootloader_hex, firmware_hex, platform, key_pem):
     """This command generates an upgrade file from given firmware files
     in Intel HEX format. It is required to specify at least one firmware
     file: Firmware or Bootloader.
@@ -67,9 +73,11 @@ def generate(upgrade_file, bootloader_hex, firmware_hex, key_pem):
     # Create payload sections from HEX files
     sections = []
     if bootloader_hex:
-        sections.append(create_payload_section(bootloader_hex, 'boot'))
+        sections.append(create_payload_section(
+            bootloader_hex, 'boot', platform))
     if firmware_hex:
-        sections.append(create_payload_section(firmware_hex, 'internal'))
+        sections.append(create_payload_section(
+            firmware_hex, 'internal', platform))
     if not len(sections):
         raise click.ClickException("No input file specified")
 
@@ -81,18 +89,18 @@ def generate(upgrade_file, bootloader_hex, firmware_hex, key_pem):
     write_sections(upgrade_file, sections)
 
 
-@cli.command(
+@ cli.command(
     'sign',
     short_help='sign existing upgrade file'
 )
-@click.option(
+@ click.option(
     '-k', '--private-key', 'key_pem',
     required=True,
     type=click.File('rb'),
     help='Private key in PEM container used to sign produced upgrade file.',
     metavar='<filename.pem>'
 )
-@click.argument(
+@ click.argument(
     'upgrade_file',
     required=True,
     type=click.File('rb+'),
@@ -118,11 +126,12 @@ def sign(upgrade_file, key_pem):
     upgrade_file.seek(0)
     write_sections(upgrade_file, sections)
 
-@cli.command(
+
+@ cli.command(
     'dump',
     short_help='dump sections and signatures from upgrade file'
 )
-@click.argument(
+@ click.argument(
     'upgrade_file',
     required=True,
     type=click.File('rb'),
@@ -144,9 +153,12 @@ def dump(upgrade_file):
             sigs = [f"{f.hex()}: {s.hex()}" for f, s in s.signatures.items()]
             print("  signatures:\n    " + "\n    ".join(sigs))
 
-def create_payload_section(hex_file, section_name):
+
+def create_payload_section(hex_file, section_name, platform):
     ih = IntelHex(hex_file)
-    attr = { 'bl_attr_base_addr' : ih.minaddr() }
+    attr = {'bl_attr_base_addr': ih.minaddr()}
+    if platform:
+        attr['bl_attr_platform'] = platform
     entry = ih.start_addr.get('EIP', ih.start_addr.get('IP', None))
     if isinstance(entry, int):
         attr['bl_attr_entry_point'] = entry
@@ -157,6 +169,7 @@ def create_payload_section(hex_file, section_name):
     if len(pl_bytes) != exp_len:
         raise click.ClickException(f"Error while parsing '{hex_file.name}'")
     return PayloadSection(name=section_name, payload=pl_bytes, attributes=attr)
+
 
 def load_seckey(key_pem):
     data = key_pem.read()
@@ -169,9 +182,11 @@ def load_seckey(key_pem):
         return seckey
     return sig.seckey_from_pem(data)
 
+
 def write_sections(upgrade_file, sections):
     for sect in sections:
         upgrade_file.write(sect.serialize())
+
 
 def load_sections(upgrade_file):
     file_data = upgrade_file.read()
@@ -181,6 +196,7 @@ def load_sections(upgrade_file):
         sect, offset = Section.deserialize(file_data, offset)
         sections.append(sect)
     return sections
+
 
 def do_sign(sections, seckey):
     # Check sections

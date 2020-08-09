@@ -10,8 +10,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/tools/upgrade-generator.py",
             "console": "integratedTerminal",
-            "args": ["gen", "-b", "build/stm32f469disco/bootloader/bootloader.hex",
-                "-f", "firmware.hex", "-k", "mykey.pem", "upgrade.bin"],
+            "args": ["gen", "-b", "build/stm32f469disco/bootloader/release/bootloader.hex",
+                "-f", "firmware.hex", "-k", "mykey.pem", "-p", "stm32f469disco", "upgrade.bin"],
             "cwd": "${workspaceFolder}"
         },
         {

@@ -43,6 +43,7 @@ _attributes = {
     'bl_attr_algorithm'   : ( 1, str, "'{}'"   ),
     'bl_attr_base_addr'   : ( 2, int, "0x{:x}" ),
     'bl_attr_entry_point' : ( 3, int, "0x{:x}" ),
+    'bl_attr_platform'    : ( 4, str, "'{}'"   ),
 }
 # Reverse lookup by attribute code
 _attribute_names = {v[0]: k for k, v in _attributes.items()}
