@@ -17,27 +17,24 @@
 #define BL_SECT_STRUCT_REV 1U
 /// Maximum allowed size of payload (16 megabytes)
 #define BL_PAYLOAD_SIZE_MAX (16U * 1024U * 1024U)
-/// Maximum allowed value ov version number
-#define BL_VERSION_MAX 4199999999U
-// Version is not available
-#define BL_VERSION_NA 0U
-/// Maximum size of version string including null character
-#define BL_VERSION_STR_MAX 16U
 /// Size of SHA-256 output
 #define BL_HASH_SIZE 32U
 /// Size of hash sentence of a payload section
 #define BL_HASH_SENTENCE_SIZE                                                  \
   (BL_MEMBER_SIZE(bl_section_t, name) + BL_MEMBER_SIZE(bl_section_t, pl_ver) + \
    BL_HASH_SIZE)
+/// Maximum size of string attribute including null character
+#define BL_ATTR_STR_MAX (32U + 1U)
 
 /// Type of unsigned integer attribute
 typedef uint64_t bl_uint_t;
 
 /// Attribute identifiers
 typedef enum bl_attr_t {
-  bl_attr_algorithm = 1,    ///< Digital signature algorithm
+  bl_attr_algorithm = 1,    ///< Digital signature algorithm, string
   bl_attr_base_addr = 2,    ///< Base address of firmware
   bl_attr_entry_point = 3,  ///< Entry point of firmware
+  bl_attr_platform = 4      ///< Platform identifier, string
 } bl_attr_t;
 
 /**
@@ -150,19 +147,6 @@ bool blsect_get_attr_uint(const bl_section_t* p_hdr, bl_attr_t attr_id,
  */
 bool blsect_get_attr_str(const bl_section_t* p_hdr, bl_attr_t attr_id,
                          char* buf, size_t buf_size);
-
-/**
- * Returns version string from version number
- *
- * Provided buffer should have size at least BL_VERSION_STR_MAX bytes to be able
- * to receive any possible version string.
- *
- * @param version   version number, as stored in header
- * @param buf       buffer where version null-terminated string will be placed
- * @param buf_size  size of provided buffer in bytes
- * @return          true if successful
- */
-bool blsect_version_to_str(uint32_t version, char* buf, size_t buf_size);
 
 /**
  * Calculates hash sentence reading payload from flash memory

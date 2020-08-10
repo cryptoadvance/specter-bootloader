@@ -291,31 +291,6 @@ bool blsect_get_attr_str(const bl_section_t* p_hdr, bl_attr_t attr_id,
   return false;
 }
 
-bool blsect_version_to_str(uint32_t version, char* buf, size_t buf_size) {
-  if (buf && buf_size) {
-    if (BL_VERSION_NA == version) {
-      *buf = '\0';
-      return true;
-    } else if (version <= BL_VERSION_MAX) {
-      uint32_t major = version / (100U * 1000U * 1000U);
-      uint32_t minor = version / (100U * 1000U) % 1000U;
-      uint32_t patch = version / 100U % 1000U;
-      uint32_t rc_rev = version % 100U;
-
-      int res = -1;
-      if (99U == rc_rev) {
-        res = snprintf(buf, buf_size, "%u.%u.%u", (unsigned)major,
-                       (unsigned)minor, (unsigned)patch);
-      } else {
-        res = snprintf(buf, buf_size, "%u.%u.%u-rc%u", (unsigned)major,
-                       (unsigned)minor, (unsigned)patch, (unsigned)rc_rev);
-      }
-      return (res > 0);
-    }
-  }
-  return false;
-}
-
 bool blsect_hash_sentence_from_flash(const bl_section_t* p_hdr,
                                      bl_addr_t pl_addr,
                                      bl_hash_sentence_t* p_result,

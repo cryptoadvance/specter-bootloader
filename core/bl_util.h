@@ -14,6 +14,14 @@
 #include <stdbool.h>
 #include <string.h>
 
+#if defined(__GNUC__) || defined(__clang__)
+/// Compiler attribute
+#define BL_ATTRS(x) __attribute__(x)
+#else
+/// Compiler attribute (empty macro)
+#define BL_ATTRS(x)
+#endif
+
 /// Text of internal error
 #define BL_INTERNAL_ERROR "internal error"
 
@@ -24,6 +32,22 @@
 /// Makes function static only if we are not building unit tests
 #define BL_STATIC_NO_TEST static
 #endif
+
+/// Maximum allowed value ov version number
+#define BL_VERSION_MAX 4199999999U
+// Version is not available
+#define BL_VERSION_NA 0U
+/// Maximum size of version string including null character
+#define BL_VERSION_STR_MAX 16U
+
+/**
+ * Macro returning size of structure's member
+ *
+ * @param type    type name of the structure
+ * @param member  member name
+ * @return        size of member in bytes
+ */
+#define BL_MEMBER_SIZE(type, member) sizeof(((type*)0)->member)
 
 /// Type of argument passed to callback functions
 typedef uintptr_t bl_cbarg_t;
@@ -53,8 +77,7 @@ extern "C" {
  * @param len   length of compared memory blocks
  * @return      true if memory blocks are equal
  */
-static inline bool bl_memeq(const void* mema, const void* memb,
-                            size_t len) {
+static inline bool bl_memeq(const void* mema, const void* memb, size_t len) {
   if (mema && memb && len) {
     return 0 == memcmp(mema, memb, len);
   }
@@ -104,8 +127,41 @@ void bl_set_progress_callback(bl_cb_progress_t cb_progress, void* user_ctx);
  */
 void bl_report_progress(bl_cbarg_t arg, uint32_t total, uint32_t complete);
 
+/**
+ * Calculates percent of completeness in 0.01% inits
+ *
+ * @param total     total number of steps
+ * @param complete  number of complete steps
+ */
+uint32_t bl_percent_x100(uint32_t total, uint32_t complete);
+
+/**
+ * Returns version string from version number
+ *
+ * Provided buffer should have size at least BL_VERSION_STR_MAX bytes to be able
+ * to receive any possible version string.
+ *
+ * @param version   version number, as stored in header
+ * @param buf       buffer where version null-terminated string will be placed
+ * @param buf_size  size of provided buffer in bytes
+ * @return          true if successful
+ */
+bool bl_version_to_str(uint32_t version, char* buf, size_t buf_size);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+/**
+ * Checks if version number corresponds to a "release candidate" version
+ *
+ * @param version  version number, as stored in header
+ * @return         true if this version is a "release candidate"
+ * @return false
+ */
+static inline bool bl_version_is_rc(uint32_t version) {
+  uint32_t rc_rev = version % 100U;
+  return rc_rev <= 98U;
+}
 
 #endif  // BL_UTIL_H_INCLUDED
