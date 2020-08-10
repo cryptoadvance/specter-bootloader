@@ -12,11 +12,16 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "bootloader.h"
 #include "bl_util.h"
 
-/// Size of secp256k1 uncompressed public key
+/// Size of a secp256k1 uncompressed public key
 #define BL_PUBKEY_SIZE 65U
+/// Prefix of a secp256k1 uncompressed public key
+#define BL_PUBKEY_PREFIX 0x04U
+/// Prefix for an "end of list" record
+#define BL_PUBKEY_EOL_PREFIX 0x00U
+/// Terminating record of a public key list
+#define BL_PUBKEY_END_OF_LIST ((bl_pubkey_t){.bytes = {BL_PUBKEY_EOL_PREFIX}})
 
 /// Error codes returned by blsig_verify_multisig()
 typedef enum blsig_error_t {
@@ -70,6 +75,23 @@ extern "C" {
  * public keys and a message sonsisted of concatenated hash sentences for each
  * payload section of the firmware.
  *
+ * Public keys are provided in form of a lis of lists (key set). External list
+ * is a list of pointers to bl_pubkey_t[] arrays, terminated with NULL pointer.
+ * Internal list is a list of of public keys terminated with
+ * BL_PUBKEY_END_OF_LIST record. External list is intended to combine several
+ * lists of public keys together, for example a list of Vendor and a list of
+ * Maintainer keys. Here is an example of the nested public key lists:
+ *
+ * \code{.c}
+ * // Two basic lists of public keys, terminated with "end of list" record
+ * const bl_pubkey_t vendor_keys[] = { {...}, {...}, BL_PUBKEY_END_OF_LIST };
+ * const bl_pubkey_t maintainer_keys[] = { {...}, BL_PUBKEY_END_OF_LIST };
+ *
+ * // The following "lists of lists" are provided to blsig_verify_multisig()
+ * const bl_pubkey_t* pubkeys_boot[] = { vendor_keys, NULL };
+ * const bl_pubkey_t* pubkeys_main[] = { vendor_keys, maintainer_keys, NULL };
+ * \endcode
+ *
  * Before the signature verification the function checks that there is no
  * duplicating records in the Signature section. If a duplication is detected,
  * the function fails returning blsig_err_duplicating_sig.
@@ -81,8 +103,7 @@ extern "C" {
  * @param algorithm    string, identifying signature algorithm
  * @param sig_pl       pointer to contents of Signature section (its payload)
  * @param sig_pl_size  size of the contents of Signature section in bytes
- * @param pubkeys      buffer containing list of public keys
- * @param n_keys       number of public keys in the list
+ * @param pubkey_set   NULL-terminated list of pointers to public key lists
  * @param message      message, concatenated hash sentences of Payload sections
  * @param message_len  length of the message in bytes
  * @param progr_arg    argument passed to progress callback function
@@ -90,9 +111,10 @@ extern "C" {
  *                     case of error (one of blsig_error_t constants)
  */
 int32_t blsig_verify_multisig(const char* algorithm, const uint8_t* sig_pl,
-                              size_t sig_pl_size, const bl_pubkey_t* pubkeys,
-                              size_t n_keys, const uint8_t* message,
-                              size_t message_len, bl_cbarg_t progr_arg);
+                              size_t sig_pl_size,
+                              const bl_pubkey_t** pubkey_set,
+                              const uint8_t* message, size_t message_len,
+                              bl_cbarg_t progr_arg);
 
 /**
  * Returns a text string corresponding to an error code
@@ -106,5 +128,25 @@ const char* blsig_error_text(int32_t err_code);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+/**
+ * Checks if a pointer to a public key points to "end of list" record
+ *
+ * @param p_key  pointer to public key
+ * @return       true if the pointer points to the "end of list" record
+ */
+static inline bool bl_pubkey_is_end_record(const bl_pubkey_t* p_key) {
+  return p_key && (BL_PUBKEY_EOL_PREFIX == p_key->bytes[0]);
+}
+
+/**
+ * Validates public key by checking its prefix
+ *
+ * @param p_key  pointer to public key
+ * @return       true if the public key is valid
+ */
+static inline bool bl_pubkey_is_valid(const bl_pubkey_t* p_key) {
+  return p_key && (BL_PUBKEY_PREFIX == p_key->bytes[0]);
+}
 
 #endif  // BL_SIGNATURE_H_INCLUDED

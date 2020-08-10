@@ -24,7 +24,7 @@
 /// Table of error strings
 const char* error_text[] = {
     [-(int)blsig_err_bad_arg] = "bad argument",
-    [-(int)blsig_err_algo_not_supported] = "signature algorithm not supported",
+    [-(int) blsig_err_algo_not_supported] = "signature algorithm not supported",
     [-(int) blsig_err_out_of_memory] = "out of memory",
     [-(int) blsig_err_duplicating_sig] = "duplicating signature",
     [-(int) blsig_err_verification_fail] = "signature verification failed"};
@@ -95,23 +95,27 @@ BL_STATIC_NO_TEST void pubkey_fingerprint(fingerprint_t* p_result,
 }
 
 /**
- * Searches for a public key in a list having given fingerprint
+ * Searches for a public key in the key set (list of lists) by its fingerprint
  *
- * @param pubkeys        list of public keys
- * @param n_keys         number of public keys in a list
+ * @param pubkey_set     NULL-terminated list of pointers to public key lists
  * @param p_fingerprint  pointer to public key fingerprint
  * @return               pointer to found public key or NULL if not found
  */
 BL_STATIC_NO_TEST const bl_pubkey_t* find_pubkey(
-    const bl_pubkey_t* pubkeys, size_t n_keys,
-    const fingerprint_t* p_fingerprint) {
-  if (pubkeys && n_keys && p_fingerprint) {
-    for (size_t idx = 0U; idx < n_keys; ++idx) {
-      fingerprint_t fp;
-      pubkey_fingerprint(&fp, &pubkeys[idx]);
-      if (fingerprint_eq(&fp, p_fingerprint)) {
-        return &pubkeys[idx];
+    const bl_pubkey_t** pubkey_set, const fingerprint_t* p_fingerprint) {
+  if (pubkey_set && p_fingerprint) {
+    const bl_pubkey_t** p_list = pubkey_set;
+    while (*p_list != NULL) {
+      const bl_pubkey_t* p_key = *p_list;
+      while (!bl_pubkey_is_end_record(p_key)) {
+        fingerprint_t fp;
+        pubkey_fingerprint(&fp, p_key);
+        if (fingerprint_eq(&fp, p_fingerprint)) {
+          return p_key;
+        }
+        ++p_key;
       }
+      ++p_list;
     }
   }
   return NULL;
@@ -188,8 +192,7 @@ BL_STATIC_NO_TEST void destroy_verify_ctx(secp256k1_context* verify_ctx) {
  * @param verify_ctx   secp256k1 context object, initialized for verification
  * @param sig_pl       pointer to contents of Signature section (its payload)
  * @param sig_pl_size  size of the contents of Signature section in bytes
- * @param pubkeys      buffer containing list of public keys
- * @param n_keys       number of public keys in the list
+ * @param pubkey_set   NULL-terminated list of pointers to public key lists
  * @param message      message, concatenated hash sentences of Payload sections
  * @param message_len  length of the message in bytes
  * @param progr_arg    argument passed to progress callback function
@@ -198,12 +201,12 @@ BL_STATIC_NO_TEST void destroy_verify_ctx(secp256k1_context* verify_ctx) {
  */
 static int32_t blsig_verify_multisig_internal(
     secp256k1_context* verify_ctx, const uint8_t* sig_pl, size_t sig_pl_size,
-    const bl_pubkey_t* pubkeys, size_t n_keys, const uint8_t* message,
-    size_t message_len, bl_cbarg_t progr_arg) {
+    const bl_pubkey_t** pubkey_set, const uint8_t* message, size_t message_len,
+    bl_cbarg_t progr_arg) {
   // Validate all arguments
   if (verify_ctx && sig_pl && sig_pl_size >= sizeof(signature_rec_t) &&
-      0U == (sig_pl_size % sizeof(signature_rec_t)) && pubkeys && n_keys &&
-      message && message_len) {
+      0U == (sig_pl_size % sizeof(signature_rec_t)) && pubkey_set && message &&
+      message_len) {
     // Convert payload to signature records
     const signature_rec_t* sig_recs = (const signature_rec_t*)sig_pl;
     uint32_t n_sig = sig_pl_size / sizeof(signature_rec_t);
@@ -217,7 +220,7 @@ static int32_t blsig_verify_multisig_internal(
       bl_report_progress(progr_arg, n_sig, 0U);
       for (uint32_t idx = 0U; idx < n_sig; ++idx) {
         // Search for a public key with a matching fingerprint
-        p_pubkey = find_pubkey(pubkeys, n_keys, &sig_recs[idx].fingerprint);
+        p_pubkey = find_pubkey(pubkey_set, &sig_recs[idx].fingerprint);
         if (p_pubkey) {  // If public key is fount, verify the signature
           if (verify_signature(verify_ctx, &sig_recs[idx].signature, message,
                                message_len, p_pubkey)) {
@@ -236,21 +239,25 @@ static int32_t blsig_verify_multisig_internal(
 }
 
 int32_t blsig_verify_multisig(const char* algorithm, const uint8_t* sig_pl,
-                              size_t sig_pl_size, const bl_pubkey_t* pubkeys,
-                              size_t n_keys, const uint8_t* message,
-                              size_t message_len, bl_cbarg_t progr_arg) {
-  if (bl_streq(algorithm, ALG_SECP256K1_SHA256)) {
-    secp256k1_context* verify_ctx = create_verify_ctx();
-    if (verify_ctx) {
-      int32_t result = blsig_verify_multisig_internal(
-          verify_ctx, sig_pl, sig_pl_size, pubkeys, n_keys, message,
-          message_len, progr_arg);
-      destroy_verify_ctx(verify_ctx);
-      return result;
+                              size_t sig_pl_size,
+                              const bl_pubkey_t** pubkey_set,
+                              const uint8_t* message, size_t message_len,
+                              bl_cbarg_t progr_arg) {
+  if (pubkey_set) {
+    if (bl_streq(algorithm, ALG_SECP256K1_SHA256)) {
+      secp256k1_context* verify_ctx = create_verify_ctx();
+      if (verify_ctx) {
+        int32_t result = blsig_verify_multisig_internal(
+            verify_ctx, sig_pl, sig_pl_size, pubkey_set, message, message_len,
+            progr_arg);
+        destroy_verify_ctx(verify_ctx);
+        return result;
+      }
+      return blsig_err_out_of_memory;
     }
-    return blsig_err_out_of_memory;
+    return blsig_err_algo_not_supported;
   }
-  return blsig_err_algo_not_supported;
+  return blsig_err_bad_arg;
 }
 
 const char* blsig_error_text(int32_t err_code) {

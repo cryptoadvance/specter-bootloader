@@ -4,6 +4,7 @@
  * @author     Mike Tolkachev <contact@miketolkachev.dev>
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
  */
+// TODO add tests with multiple sets of keys
 
 #define BLSIG_DEFINE_PRIVATE_TYPES
 #include <algorithm>
@@ -19,10 +20,10 @@
 #define SECP256K1_SHA256 "secp256k1-sha256"
 // Size of public key fingerprint data in bytes
 #define FP_SIZE BL_MEMBER_SIZE(fingerprint_t, bytes)
-// Number of public keys in reference key list
-#define REF_N_PUBKEYS 3U
 // Number of signature records in the reference Signature section payload
 #define REF_N_SIGS 3U
+// Number of public keys in the reference list of public keys
+#define REF_N_PUBKEYS 3U
 // Length of the reference message in bytes
 #define REF_MESSAGE_LEN (sizeof(ref_message_str) - 1U)
 
@@ -31,7 +32,7 @@ extern "C" {
 bool check_duplicating_signatures(const signature_rec_t* sig_recs,
                                   uint32_t n_sig);
 void pubkey_fingerprint(fingerprint_t* p_result, const bl_pubkey_t* p_pubkey);
-const bl_pubkey_t* find_pubkey(const bl_pubkey_t* pubkeys, size_t n_keys,
+const bl_pubkey_t* find_pubkey(const bl_pubkey_t** p_pubkeys,
                                const fingerprint_t* p_fingerprint);
 bool verify_signature(secp256k1_context* verify_ctx, const signature_t* p_sig,
                       const uint8_t* message, size_t message_len,
@@ -72,7 +73,7 @@ static const uint8_t ref_signature[BL_MEMBER_SIZE(signature_t, bytes) + 1] =
     "\x44\xb3\x84\xd7\xa1\x0e\xc6\xf4\x44\x97\xe7\xac\xe7}";
 
 // Reference list of public keys
-static const bl_pubkey_t ref_multisig_pubkeys[REF_N_PUBKEYS] = {
+static const bl_pubkey_t ref_multisig_pubkey_list[REF_N_PUBKEYS + 1] = {
     {.bytes = {0x04, 0x8C, 0x28, 0xA9, 0x7B, 0xF8, 0x29, 0x8B, 0xC0, 0xD2, 0x3D,
                0x8C, 0x74, 0x94, 0x52, 0xA3, 0x2E, 0x69, 0x4B, 0x65, 0xE3, 0x0A,
                0x94, 0x72, 0xA3, 0x95, 0x4A, 0xB3, 0x0F, 0xE5, 0x32, 0x4C, 0xAA,
@@ -90,7 +91,12 @@ static const bl_pubkey_t ref_multisig_pubkeys[REF_N_PUBKEYS] = {
                0x34, 0x66, 0xCF, 0x86, 0x3E, 0x87, 0x15, 0x47, 0x54, 0xDD, 0x40,
                0x91, 0xD1, 0xA2, 0x44, 0x26, 0x5F, 0xEA, 0x1D, 0xCD, 0x15, 0xC7,
                0x5D, 0xCB, 0xD4, 0xDF, 0x36, 0x90, 0xDA, 0xE8, 0x52, 0x55, 0xAC,
-               0xAF, 0x49, 0x38, 0x4B, 0x49, 0x2F, 0x2A, 0xA3, 0x61, 0x43}}};
+               0xAF, 0x49, 0x38, 0x4B, 0x49, 0x2F, 0x2A, 0xA3, 0x61, 0x43}},
+    BL_PUBKEY_END_OF_LIST};
+
+// Reference public key set consisting of one public key list
+static const bl_pubkey_t* ref_multisig_pubkeys[] = {ref_multisig_pubkey_list,
+                                                    NULL};
 
 // The reference contents of Signature section (signature records)
 static const signature_rec_t ref_multisig_sigrecs[REF_N_SIGS] = {
@@ -207,21 +213,23 @@ TEST_CASE("Public key fingerprint") {
 
 TEST_CASE("Find public key by fingerprint") {
   const int n_keys = 23U;
-  auto keys = std::make_unique<bl_pubkey_t[]>(n_keys);
+  auto keys = std::make_unique<bl_pubkey_t[]>(n_keys + 1U);
   for (int i = 0; i < n_keys; ++i) {
     memset(keys[i].bytes, i + 1U, sizeof(keys[i].bytes));
   }
+  keys[n_keys] = BL_PUBKEY_END_OF_LIST;
+  const bl_pubkey_t* key_set[] = {keys.get(), NULL};
 
   for (int i = 0; i < n_keys; ++i) {
     fingerprint_t fp;
     pubkey_fingerprint(&fp, &keys[i]);
-    const bl_pubkey_t* p_found_key = find_pubkey(keys.get(), n_keys, &fp);
+    const bl_pubkey_t* p_found_key = find_pubkey(key_set, &fp);
     REQUIRE(p_found_key == &keys[i]);
   }
 
   fingerprint_t fp;
   memset(fp.bytes, 0xEE, sizeof(fp.bytes));
-  REQUIRE(NULL == find_pubkey(keys.get(), n_keys, &fp));
+  REQUIRE(NULL == find_pubkey(key_set, &fp));
 }
 
 TEST_CASE("Verify signature") {
@@ -263,50 +271,140 @@ TEST_CASE("Verify multiple signatures") {
     ProgressMonitor monitor(12345U);
     int32_t valid_sigs = blsig_verify_multisig(
         "secp256k1-sha256", (const uint8_t*)ref_multisig_sigrecs,
-        sizeof(ref_multisig_sigrecs), ref_multisig_pubkeys, REF_N_PUBKEYS,
-        ref_message_str, REF_MESSAGE_LEN, 12345U);
+        sizeof(ref_multisig_sigrecs), ref_multisig_pubkeys, ref_message_str,
+        REF_MESSAGE_LEN, 12345U);
     REQUIRE(REF_N_SIGS == valid_sigs);
     REQUIRE(monitor.is_complete());
   }
 
+  SECTION("valid, 2 public key lists") {
+    REQUIRE(REF_N_PUBKEYS >= 3);
+    auto list1 = std::vector<bl_pubkey_t>(
+        {ref_multisig_pubkey_list[0], BL_PUBKEY_END_OF_LIST});
+    auto list2 = std::vector<bl_pubkey_t>({ref_multisig_pubkey_list[1],
+                                           ref_multisig_pubkey_list[2],
+                                           BL_PUBKEY_END_OF_LIST});
+    const bl_pubkey_t* pubkeys[] = {list1.data(), list2.data(), NULL};
+
+    ProgressMonitor monitor(12345U);
+    int32_t valid_sigs = blsig_verify_multisig(
+        "secp256k1-sha256", (const uint8_t*)ref_multisig_sigrecs,
+        sizeof(ref_multisig_sigrecs), pubkeys, ref_message_str, REF_MESSAGE_LEN,
+        12345U);
+    REQUIRE(3 == valid_sigs);
+    REQUIRE(monitor.is_complete());
+  }
+
+  SECTION("valid, 3 public key lists") {
+    REQUIRE(REF_N_PUBKEYS >= 3);
+    auto list1 = std::vector<bl_pubkey_t>(
+        {ref_multisig_pubkey_list[0], BL_PUBKEY_END_OF_LIST});
+    auto list2 = std::vector<bl_pubkey_t>(
+        {ref_multisig_pubkey_list[1], BL_PUBKEY_END_OF_LIST});
+    auto list3 = std::vector<bl_pubkey_t>(
+        {ref_multisig_pubkey_list[2], BL_PUBKEY_END_OF_LIST});
+    const bl_pubkey_t* pubkeys[] = {list1.data(), list2.data(), list3.data(),
+                                    NULL};
+
+    ProgressMonitor monitor(12345U);
+    int32_t valid_sigs = blsig_verify_multisig(
+        "secp256k1-sha256", (const uint8_t*)ref_multisig_sigrecs,
+        sizeof(ref_multisig_sigrecs), pubkeys, ref_message_str, REF_MESSAGE_LEN,
+        12345U);
+    REQUIRE(3 == valid_sigs);
+    REQUIRE(monitor.is_complete());
+  }
+
+  SECTION("empty public key list") {
+    REQUIRE(REF_N_PUBKEYS >= 3);
+    auto list1 = std::vector<bl_pubkey_t>({BL_PUBKEY_END_OF_LIST});
+    auto list2 = std::vector<bl_pubkey_t>(
+        {ref_multisig_pubkey_list[0], ref_multisig_pubkey_list[1],
+         ref_multisig_pubkey_list[2], BL_PUBKEY_END_OF_LIST});
+    const bl_pubkey_t* pubkeys[] = {list1.data(), list2.data(), NULL};
+
+    ProgressMonitor monitor(12345U);
+    int32_t valid_sigs = blsig_verify_multisig(
+        "secp256k1-sha256", (const uint8_t*)ref_multisig_sigrecs,
+        sizeof(ref_multisig_sigrecs), pubkeys, ref_message_str, REF_MESSAGE_LEN,
+        12345U);
+    REQUIRE(3 == valid_sigs);
+    REQUIRE(monitor.is_complete());
+  }
+
+  SECTION("duplicating keys in public key lists") {
+    REQUIRE(REF_N_PUBKEYS >= 3);
+    auto list1 = std::vector<bl_pubkey_t>({ref_multisig_pubkey_list[0],
+                                           ref_multisig_pubkey_list[1],
+                                           BL_PUBKEY_END_OF_LIST});
+    auto list2 = std::vector<bl_pubkey_t>({ref_multisig_pubkey_list[1],
+                                           ref_multisig_pubkey_list[2],
+                                           BL_PUBKEY_END_OF_LIST});
+    const bl_pubkey_t* pubkeys[] = {list1.data(), list2.data(), NULL};
+
+    ProgressMonitor monitor(12345U);
+    int32_t valid_sigs = blsig_verify_multisig(
+        "secp256k1-sha256", (const uint8_t*)ref_multisig_sigrecs,
+        sizeof(ref_multisig_sigrecs), pubkeys, ref_message_str, REF_MESSAGE_LEN,
+        12345U);
+    REQUIRE(3 == valid_sigs);
+    REQUIRE(monitor.is_complete());
+  }
+
+  SECTION("all public key lists are empty") {
+    auto list1 = std::vector<bl_pubkey_t>({BL_PUBKEY_END_OF_LIST});
+    auto list2 = std::vector<bl_pubkey_t>({BL_PUBKEY_END_OF_LIST});
+    const bl_pubkey_t* pubkeys[] = {list1.data(), list2.data(), NULL};
+
+    ProgressMonitor monitor(12345U);
+    int32_t valid_sigs = blsig_verify_multisig(
+        "secp256k1-sha256", (const uint8_t*)ref_multisig_sigrecs,
+        sizeof(ref_multisig_sigrecs), pubkeys, ref_message_str, REF_MESSAGE_LEN,
+        12345U);
+    REQUIRE(0 == valid_sigs);
+    REQUIRE(monitor.is_complete());
+  }
+
+  SECTION("empty public key set") {
+    const bl_pubkey_t* pubkeys[] = {NULL};
+    int32_t result = blsig_verify_multisig(
+        "secp256k1-sha256", (const uint8_t*)ref_multisig_sigrecs,
+        sizeof(ref_multisig_sigrecs), pubkeys, ref_message_str, REF_MESSAGE_LEN,
+        0U);
+    REQUIRE(0 == result);
+  }
+
   SECTION("bad arguments") {
     REQUIRE(blsig_err_bad_arg ==
-            blsig_verify_multisig("secp256k1-sha256", NULL,
-                                  sizeof(ref_multisig_sigrecs),
-                                  ref_multisig_pubkeys, REF_N_PUBKEYS,
-                                  ref_message_str, REF_MESSAGE_LEN, 0U));
+            blsig_verify_multisig(
+                "secp256k1-sha256", NULL, sizeof(ref_multisig_sigrecs),
+                ref_multisig_pubkeys, ref_message_str, REF_MESSAGE_LEN, 0U));
+    REQUIRE(blsig_err_bad_arg ==
+            blsig_verify_multisig(
+                "secp256k1-sha256", (const uint8_t*)ref_multisig_sigrecs, 0U,
+                ref_multisig_pubkeys, ref_message_str, REF_MESSAGE_LEN, 0U));
     REQUIRE(blsig_err_bad_arg ==
             blsig_verify_multisig("secp256k1-sha256",
-                                  (const uint8_t*)ref_multisig_sigrecs, 0U,
-                                  ref_multisig_pubkeys, REF_N_PUBKEYS,
+                                  (const uint8_t*)ref_multisig_sigrecs,
+                                  sizeof(ref_multisig_sigrecs), NULL,
                                   ref_message_str, REF_MESSAGE_LEN, 0U));
     REQUIRE(blsig_err_bad_arg ==
             blsig_verify_multisig(
                 "secp256k1-sha256", (const uint8_t*)ref_multisig_sigrecs,
-                sizeof(ref_multisig_sigrecs), NULL, REF_N_PUBKEYS,
-                ref_message_str, REF_MESSAGE_LEN, 0U));
-    REQUIRE(blsig_err_bad_arg ==
-            blsig_verify_multisig(
-                "secp256k1-sha256", (const uint8_t*)ref_multisig_sigrecs,
-                sizeof(ref_multisig_sigrecs), ref_multisig_pubkeys, 0U,
-                ref_message_str, REF_MESSAGE_LEN, 0U));
+                sizeof(ref_multisig_sigrecs), ref_multisig_pubkeys, NULL,
+                REF_MESSAGE_LEN, 0U));
     REQUIRE(blsig_err_bad_arg ==
             blsig_verify_multisig(
                 "secp256k1-sha256", (const uint8_t*)ref_multisig_sigrecs,
                 sizeof(ref_multisig_sigrecs), ref_multisig_pubkeys,
-                REF_N_PUBKEYS, NULL, REF_MESSAGE_LEN, 0U));
-    REQUIRE(blsig_err_bad_arg ==
-            blsig_verify_multisig(
-                "secp256k1-sha256", (const uint8_t*)ref_multisig_sigrecs,
-                sizeof(ref_multisig_sigrecs), ref_multisig_pubkeys,
-                REF_N_PUBKEYS, ref_message_str, 0U, 0U));
+                ref_message_str, 0U, 0U));
   }
 
   SECTION("unsupported algorithm") {
     int32_t result = blsig_verify_multisig(
         "secp256k1-sha2566", (const uint8_t*)ref_multisig_sigrecs,
-        sizeof(ref_multisig_sigrecs), ref_multisig_pubkeys, REF_N_PUBKEYS,
-        ref_message_str, REF_MESSAGE_LEN, 0U);
+        sizeof(ref_multisig_sigrecs), ref_multisig_pubkeys, ref_message_str,
+        REF_MESSAGE_LEN, 0U);
     REQUIRE(blsig_err_algo_not_supported == result);
   }
 
@@ -320,16 +418,16 @@ TEST_CASE("Verify multiple signatures") {
     recs.push_back(recs[0]);
     result = blsig_verify_multisig(
         "secp256k1-sha256", (const uint8_t*)recs.data(),
-        recs.size() * sizeof(recs[0]), ref_multisig_pubkeys, REF_N_PUBKEYS,
-        ref_message_str, REF_MESSAGE_LEN, 0U);
+        recs.size() * sizeof(recs[0]), ref_multisig_pubkeys, ref_message_str,
+        REF_MESSAGE_LEN, 0U);
     REQUIRE(blsig_err_duplicating_sig == result);
 
     // Try again without the last record, it should pass
     recs.pop_back();
     result = blsig_verify_multisig(
         "secp256k1-sha256", (const uint8_t*)recs.data(),
-        recs.size() * sizeof(recs[0]), ref_multisig_pubkeys, REF_N_PUBKEYS,
-        ref_message_str, REF_MESSAGE_LEN, 0U);
+        recs.size() * sizeof(recs[0]), ref_multisig_pubkeys, ref_message_str,
+        REF_MESSAGE_LEN, 0U);
     REQUIRE(REF_N_SIGS == result);
   }
 
@@ -343,7 +441,7 @@ TEST_CASE("Verify multiple signatures") {
             blsig_verify_multisig(
                 "secp256k1-sha256", (const uint8_t*)recs.data(),
                 recs.size() * sizeof(recs[0]), ref_multisig_pubkeys,
-                REF_N_PUBKEYS, ref_message_str, REF_MESSAGE_LEN, 0U));
+                ref_message_str, REF_MESSAGE_LEN, 0U));
   }
 
   SECTION("additional inert signatures") {
@@ -360,8 +458,8 @@ TEST_CASE("Verify multiple signatures") {
     REQUIRE(REF_N_SIGS == blsig_verify_multisig(
                               "secp256k1-sha256", (const uint8_t*)recs.data(),
                               recs.size() * sizeof(recs[0]),
-                              ref_multisig_pubkeys, REF_N_PUBKEYS,
-                              ref_message_str, REF_MESSAGE_LEN, 0U));
+                              ref_multisig_pubkeys, ref_message_str,
+                              REF_MESSAGE_LEN, 0U));
   }
 }
 
