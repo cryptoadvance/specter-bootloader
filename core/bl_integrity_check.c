@@ -11,7 +11,6 @@
 #include "bl_integrity_check.h"
 #include "bl_util.h"
 #include "bl_syscalls.h"
-#include "bl_section.h"
 
 // Magic word, "INTG" in LE
 #define BL_ICR_MAGIC 0x47544E49UL
