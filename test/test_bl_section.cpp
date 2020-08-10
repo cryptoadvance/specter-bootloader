@@ -683,21 +683,21 @@ TEST_CASE("Get version string") {
   char buf[BL_VERSION_STR_MAX];
 
   // Valid
-  REQUIRE(blsect_version_to_str(102213405U, buf, sizeof(buf)));
+  REQUIRE(bl_version_to_str(102213405U, buf, sizeof(buf)));
   REQUIRE(streq(buf, "1.22.134-rc5"));
-  REQUIRE(blsect_version_to_str(1200001599, buf, sizeof(buf)));
+  REQUIRE(bl_version_to_str(1200001599, buf, sizeof(buf)));
   REQUIRE(streq(buf, "12.0.15"));
-  REQUIRE(blsect_version_to_str(1, buf, sizeof(buf)));
+  REQUIRE(bl_version_to_str(1, buf, sizeof(buf)));
   REQUIRE(streq(buf, "0.0.0-rc1"));
-  REQUIRE(blsect_version_to_str(4199999999, buf, sizeof(buf)));
+  REQUIRE(bl_version_to_str(4199999999, buf, sizeof(buf)));
   REQUIRE(streq(buf, "41.999.999"));
-  REQUIRE(blsect_version_to_str(BL_VERSION_NA, buf, sizeof(buf)));
+  REQUIRE(bl_version_to_str(BL_VERSION_NA, buf, sizeof(buf)));
   REQUIRE(streq(buf, ""));
 
   // Invalid
-  REQUIRE_FALSE(blsect_version_to_str(102213405U, NULL, sizeof(buf)));
-  REQUIRE_FALSE(blsect_version_to_str(102213405U, buf, 0U));
-  REQUIRE_FALSE(blsect_version_to_str(BL_VERSION_MAX + 1U, buf, sizeof(buf)));
+  REQUIRE_FALSE(bl_version_to_str(102213405U, NULL, sizeof(buf)));
+  REQUIRE_FALSE(bl_version_to_str(102213405U, buf, 0U));
+  REQUIRE_FALSE(bl_version_to_str(BL_VERSION_MAX + 1U, buf, sizeof(buf)));
 }
 
 TEST_CASE("Get hash sentence from flash") {
