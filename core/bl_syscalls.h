@@ -85,6 +85,15 @@ extern "C" {
 #endif
 
 /**
+ * Returns a string identifying the platform
+ *
+ * NOTE: This function does not require prior initialization of the system.
+ *
+ * @return  a constant string identifying the platform, always valid
+ */
+const char* blsys_platform_id(void);
+
+/**
  * Initialisation of system and platform resources
  *
  * This function is guaranteed to be called by the Bootloader before any other
@@ -335,13 +344,13 @@ bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,
 /**
  * Reports current progress of firmware upgrading
  *
- * @param caption    caption text, like "Upgrading Bootloader to v.1.2.3"
- * @param operation  current operation, like "Verifying signature"
- * @param total      total number of steps
- * @param complete   number of complete steps
+ * @param caption       caption text, like "Upgrading Bootloader to v.1.2.3"
+ * @param operation     current operation, like "Verifying signature"
+ * @param percent_x100  percent of completeness in 0.01% units
+ * @param complete      number of complete steps
  */
-void blsys_progress(const char* caption, const char* operation, uint32_t total,
-                    uint32_t complete);
+void blsys_progress(const char* caption, const char* operation,
+                    uint32_t percent_x100);
 
 #ifdef __cplusplus
 }  // extern "C"

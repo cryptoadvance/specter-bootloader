@@ -45,7 +45,14 @@ static uint8_t* flash_emu_buf = NULL;
 /// Printed characters of the progress message
 static int progress_n_chr = -1;
 
+const char* blsys_platform_id(void) {
+  // Mimics real hardware platform
+  static const char* platform_id_ = "stm32f469disco";
+  return platform_id_;
+}
+
 bool blsys_init(void) {
+  // TODO read initial state of flash from file
   progress_n_chr = -1;
   flash_emu_buf = malloc(FLASH_EMU_SIZE);
   if (!flash_emu_buf) {

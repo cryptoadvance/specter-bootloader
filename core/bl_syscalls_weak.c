@@ -12,11 +12,21 @@
 #include "bl_util.h"
 #include "bl_syscalls.h"
 
+#ifndef PLATFORM_ID
+/// Fallback platform identifier (normally should be defined in build)
+#define PLATFORM_ID "unknown"
+#endif
+
 #ifdef WEAK
 #undef WEAK
 #endif
 /// Adds "weak" attribute
 #define WEAK BL_ATTRS((weak))
+
+WEAK const char* blsys_platform_id(void) {
+  static const char* platform_id_ = PLATFORM_ID;
+  return platform_id_;
+}
 
 WEAK bool blsys_init(void) { return true; }
 
@@ -230,4 +240,4 @@ WEAK bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,
 }
 
 WEAK void blsys_progress(const char* caption, const char* operation,
-                         uint32_t total, uint32_t complete) {}
+                         uint32_t percent_x100) {}
