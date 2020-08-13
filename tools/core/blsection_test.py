@@ -30,6 +30,8 @@ class Test_bl_section_t:
         ref_str = ("bl_attr_algorithm: 'secp256k1-sha256', a2: None, "
                    "a3: 123456789012, a4: 'This is a simple text. END'")
         assert sect.get_attributes_str() == ref_str
+        with pytest.raises(ValueError):
+            sect.set_attributes({'a4' : "This string is longer than 32 chr"})
 
     def test_crc(self):
         sect = _bl_section_t()

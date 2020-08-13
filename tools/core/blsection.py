@@ -18,6 +18,8 @@ _arraylike = (frozenset, list, set, tuple,)
 BL_SECT_MAGIC = 0x54434553 # "SECT" in LE
 # Structure revision
 STRUCT_REV = 1
+# Maximum size of string attribute including null character
+BL_ATTR_STR_MAX = 32
 # Supported revisions of the structure for deserialization
 _supported_revisions = [1]
 # Maximum allowed size of payload (16 megabytes)
@@ -152,6 +154,8 @@ class _bl_section_t(LittleEndianStructure):
             elif isinstance(value, int):
                 data = list(self._encode_int(value))
             elif isinstance(value, str):
+                if len(value) > BL_ATTR_STR_MAX:
+                    raise ValueError("Attribute string size exceeded")
                 data = list(value.encode('ascii'))
             else:
                 data = list(value)
