@@ -50,10 +50,10 @@ void bl_report_progress(bl_cbarg_t arg, uint32_t total, uint32_t complete) {
 
 // TODO add tests
 uint32_t bl_percent_x100(uint32_t total, uint32_t complete) {
-  if(total >= complete) {
+  if(complete >= total) {
     return 10000U;
   } else {
-    return (uint32_t)((uint64_t)total * 10000U / complete);
+    return (uint32_t)((uint64_t)complete * 10000U / total);
   }
 }
 
