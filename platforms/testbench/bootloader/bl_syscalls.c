@@ -44,6 +44,7 @@ static const char* alert_type_str[bl_nalerts] = {
 static uint8_t* flash_emu_buf = NULL;
 /// Printed characters of the progress message
 static int progress_n_chr = -1;
+static char* progress_prev_text = NULL;
 
 const char* blsys_platform_id(void) {
   // Mimics real hardware platform
@@ -54,24 +55,37 @@ const char* blsys_platform_id(void) {
 bool blsys_init(void) {
   // TODO read initial state of flash from file
   progress_n_chr = -1;
+  progress_prev_text = NULL;
   flash_emu_buf = malloc(FLASH_EMU_SIZE);
   if (!flash_emu_buf) {
     blsys_fatal_error("unable to allocate flash emulation buffer");
   }
-  memset(flash_emu_buf, 0xFF, FLASH_EMU_SIZE);
+  size_t bytes_read = 0U;
+  FILE* in_file = fopen(FLASH_EMU_FILE, "rb");
+  if (in_file) {
+    bytes_read = fread(flash_emu_buf, 1U, FLASH_EMU_SIZE, in_file);
+    fclose(in_file);
+  }
+  if (bytes_read != FLASH_EMU_SIZE) {
+    memset(flash_emu_buf, 0xFF, FLASH_EMU_SIZE);
+  }
   return true;
 }
 
 void blsys_deinit(void) {
+  if (progress_prev_text) {
+    free(progress_prev_text);
+    progress_prev_text = NULL;
+  }
   if (flash_emu_buf) {
     size_t written = 0U;
     FILE* out_file = fopen(FLASH_EMU_FILE, "wb");
     if (out_file) {
-      written = fwrite(flash_emu_buf, FLASH_EMU_SIZE, 1U, out_file);
+      written = fwrite(flash_emu_buf, 1U, FLASH_EMU_SIZE, out_file);
       fclose(out_file);
     }
     free(flash_emu_buf);
-    if (!written) {
+    if (written != FLASH_EMU_SIZE) {
       blsys_fatal_error("unable to dump emulated flash memory to a file");
     }
   }
@@ -217,7 +231,7 @@ bl_fsize_t blsys_fsize(bl_file_t file) {
 
   long curr_pos = ftell(file);
   if (curr_pos >= 0) {
-    if (fseek(file, 0L, SEEK_END)) {
+    if (0 == fseek(file, 0L, SEEK_END)) {  // Successful
       long end_pos = ftell(file);
       if (end_pos >= 0) {
         file_size = (bl_fsize_t)end_pos;
@@ -285,12 +299,25 @@ void blsys_progress(const char* caption, const char* operation,
     const size_t buf_size = strlen(caption) + strlen(operation) + 100U;
     char* str_buf = malloc(buf_size);
     if (str_buf) {
-      int n_chr = snprintf(str_buf, buf_size, "%s: %s - %3.2f%%", caption,
-                           operation, (double)percent_x100 / 100.0);
+      int n_chr = snprintf(str_buf, buf_size, "(Progress) %3.2f%% %s: %s",
+                           (double)percent_x100 / 100.0, caption, operation);
       if (n_chr > 0) {
+#ifdef TESTBENCH_PROGRESS_NEWLINE
+        if (progress_prev_text) {
+          if (strcmp(progress_prev_text, str_buf) != 0) {
+            printf("%s\n", str_buf);
+            free(progress_prev_text);
+            progress_prev_text = strdup(str_buf);
+          }
+        } else {
+          printf("\n%s\n", str_buf);
+          progress_prev_text = strdup(str_buf);
+        }
+#else   // TESTBENCH_PROGRESS_NEWLINE
         console_erase(progress_n_chr);
         printf(progress_n_chr > 0 ? "%s" : "\n%s", str_buf);
         progress_n_chr = n_chr;
+#endif  // TESTBENCH_PROGRESS_NEWLINE
       }
       free(str_buf);
     }
