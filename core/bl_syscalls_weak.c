@@ -228,14 +228,23 @@ WEAK int blsys_fclose(bl_file_t file) {
 
 BL_ATTRS((weak, noreturn)) void blsys_fatal_error(const char* text) {
   blsys_alert(bl_alert_error, "Bootloader Error", text, BL_FOREVER, 0U);
+  blsys_media_umount();
+  blsys_deinit();
   exit(1);
-  while (1)
-    ;  // Should not get there
+  while (1) {  // Should not get there
+  }
 }
 
 WEAK bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,
                                    const char* text, uint32_t time_ms,
                                    uint32_t flags) {
+  if (BL_FOREVER == time_ms) {
+    blsys_media_umount();
+    blsys_deinit();
+    exit(1);
+    while (1) {  // Should not get there
+    }
+  }
   return bl_alert_terminated;
 }
 
