@@ -14,8 +14,6 @@
 #include "bl_signature.h"
 #include "bl_util.h"
 
-/// Size of the buffer to be used to store ECC context
-#define ECDSA_BUF_SIZE 480U
 /// Size of input message of ECDSA algorithm with secp256k1 curve
 #define ECDSA_MESSAGE_SIZE 32U
 /// Digital signature algorithm string: secp256k1-sha256
@@ -29,11 +27,8 @@ const char* error_text[] = {
     [-(int) blsig_err_duplicating_sig] = "Duplicating signature",
     [-(int) blsig_err_verification_fail] = "Signature verification failed"};
 
-/// Statically allocated contex
-static struct {
-  // Buffer used by secp256k1 library to allocate context
-  uint8_t ecdsa_buf[ECDSA_BUF_SIZE];
-} ctx;
+// Buffer used by secp256k1 library to allocate context
+uint8_t blsig_ecdsa_buf[BLSIG_ECDSA_BUF_SIZE];
 
 /**
  * Tests if two signature records have the same public key fingerprint
@@ -169,8 +164,8 @@ BL_STATIC_NO_TEST secp256k1_context* create_verify_ctx(void) {
   const unsigned int flags = SECP256K1_CONTEXT_VERIFY;
   size_t req_size = secp256k1_context_preallocated_size(flags);
 
-  if (req_size <= sizeof(ctx.ecdsa_buf)) {
-    return secp256k1_context_preallocated_create(ctx.ecdsa_buf, flags);
+  if (req_size <= BLSIG_ECDSA_BUF_SIZE) {
+    return secp256k1_context_preallocated_create(blsig_ecdsa_buf, flags);
   }
   return NULL;
 }

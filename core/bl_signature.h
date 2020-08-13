@@ -22,6 +22,8 @@
 #define BL_PUBKEY_EOL_PREFIX 0x00U
 /// Terminating record of a public key list
 #define BL_PUBKEY_END_OF_LIST ((bl_pubkey_t){.bytes = {BL_PUBKEY_EOL_PREFIX}})
+/// Size of the buffer to be used to store ECC context
+#define BLSIG_ECDSA_BUF_SIZE 66016U
 
 /// Error codes returned by blsig_verify_multisig()
 typedef enum blsig_error_t {

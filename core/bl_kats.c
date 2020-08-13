@@ -11,9 +11,8 @@
 #include "secp256k1_preallocated.h"
 #include "bl_kats.h"
 #include "bl_util.h"
+#include "bl_signature.h"
 
-/// Size of the buffer to be used to store ECC context
-#define ECDSA_BUF_SIZE 480U
 /// Size of input message of ECDSA algorithm with secp256k1 curve
 #define ECDSA_MESSAGE_SIZE 32U
 /// Size in bytes of a compact signature of ECDSA algorithm with secp256k1 curve
@@ -65,11 +64,8 @@ static const uint8_t ref_signature[ECDSA_SIG_COMPACT_SIZE] = {
     0xB1U, 0xC3U, 0x07U, 0xACU, 0x40U, 0xA8U, 0x44U, 0xB3U, 0x84U, 0xD7U, 0xA1U,
     0x0EU, 0xC6U, 0xF4U, 0x44U, 0x97U, 0xE7U, 0xACU, 0xE7U, 0x7DU};
 
-/// Statically allocated contex
-static struct {
-  // Buffer used by secp256k1 library to allocate context
-  uint8_t ecdsa_buf[ECDSA_BUF_SIZE];
-} ctx;
+// Buffer used by secp256k1 library to allocate context
+extern uint8_t blsig_ecdsa_buf[BLSIG_ECDSA_BUF_SIZE];
 
 /**
  * Tests two byte buffers for equality
@@ -181,9 +177,9 @@ static bool ecdsa_secp256k1_verify_kat(secp256k1_context* ecdsa_ctx) {
 BL_STATIC_NO_TEST bool do_ecdsa_secp256k1_kat(void) {
   const unsigned int flags = SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY;
   size_t ctx_size = secp256k1_context_preallocated_size(flags);
-  if (ctx_size <= sizeof(ctx.ecdsa_buf)) {
+  if (ctx_size <= BLSIG_ECDSA_BUF_SIZE) {
     secp256k1_context* ecdsa_ctx =
-        secp256k1_context_preallocated_create(ctx.ecdsa_buf, flags);
+        secp256k1_context_preallocated_create(blsig_ecdsa_buf, flags);
     if (ecdsa_ctx) {
       bool success = ecdsa_secp256k1_sign_kat(ecdsa_ctx);
       success = success && ecdsa_secp256k1_verify_kat(ecdsa_ctx);
