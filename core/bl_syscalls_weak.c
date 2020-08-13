@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include "crc32.h"
 #include "bl_util.h"
 #include "bl_syscalls.h"
@@ -23,6 +24,10 @@
 /// Adds "weak" attribute
 #define WEAK BL_ATTRS((weak))
 
+/// Inert flash memory map
+const bl_addr_t bl_flash_map[bl_flash_map_nitems] WEAK = {
+    [bl_flash_firmware_base] = BL_ADDR_MAX}; // Marker of inert table
+
 WEAK const char* blsys_platform_id(void) {
   static const char* platform_id_ = PLATFORM_ID;
   return platform_id_;
@@ -32,7 +37,28 @@ WEAK bool blsys_init(void) { return true; }
 
 WEAK void blsys_deinit(void) {}
 
-WEAK bool blsys_flash_map_get_items(int items, ...) { return false; }
+WEAK bool blsys_flash_map_get_items(int items, ...) {
+  if (BL_ADDR_MAX == bl_flash_map[bl_flash_firmware_base]) {
+    // Inert flash memory map is detected!
+    // User code must re-define bl_flash_map[] or blsys_flash_map_get_items()
+    // or both for correct operation.
+    return false;
+  }
+
+  va_list ap;
+  va_start(ap, items);
+  for (int i = 0; i < items; ++i) {
+    bl_flash_map_item_t item_id = (bl_flash_map_item_t)va_arg(ap, int);
+    bl_addr_t* p_item = va_arg(ap, bl_addr_t*);
+    if ((int)item_id < 0 || (int)item_id >= bl_flash_map_nitems || !p_item) {
+      return false;
+    }
+    *p_item = bl_flash_map[item_id];
+  }
+  va_end(ap);
+
+  return true;
+}
 
 WEAK bool blsys_flash_erase(bl_addr_t addr, size_t size) { return false; }
 

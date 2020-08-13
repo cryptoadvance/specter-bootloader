@@ -23,7 +23,7 @@
 
 /// Flash memory map
 // clang-format off
-static const bl_addr_t flash_map[bl_flash_map_nitems] = {
+const bl_addr_t bl_flash_map[bl_flash_map_nitems] = {
   [bl_flash_firmware_base]          = 0x08008000U,
   [bl_flash_firmware_size]          = (96U + 1760U) * 1024U,
   [bl_flash_bootloader_image_base]  = 0x081C0000U,
@@ -89,23 +89,6 @@ void blsys_deinit(void) {
       blsys_fatal_error("unable to dump emulated flash memory to a file");
     }
   }
-}
-
-bool blsys_flash_map_get_items(int items, ...) {
-  va_list ap;
-
-  va_start(ap, items);
-  for (int i = 0; i < items; ++i) {
-    bl_flash_map_item_t item_id = (bl_flash_map_item_t)va_arg(ap, int);
-    bl_addr_t* p_item = va_arg(ap, bl_addr_t*);
-    if ((int)item_id < 0 || (int)item_id >= bl_flash_map_nitems || !p_item) {
-      return false;
-    }
-    *p_item = flash_map[item_id];
-  }
-  va_end(ap);
-
-  return true;
 }
 
 /**

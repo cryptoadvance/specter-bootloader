@@ -16,6 +16,17 @@
 #include "bl_syscalls.h"
 #include "ff.h"
 
+/// Flash memory map
+// clang-format off
+const bl_addr_t bl_flash_map[bl_flash_map_nitems] = {
+  [bl_flash_firmware_base]          = 0x08008000U,
+  [bl_flash_firmware_size]          = (96U + 1760U) * 1024U,
+  [bl_flash_bootloader_image_base]  = 0x081C0000U,
+  [bl_flash_bootloader_copy1_base]  = 0x081C0000U,
+  [bl_flash_bootloader_copy2_base]  = 0x081E0000U,
+  [bl_flash_bootloader_size]        = 128U * 1024U };
+// clang-format on
+
 bool blsys_init(void) {
   // TODO: implement
   return false;
@@ -23,11 +34,6 @@ bool blsys_init(void) {
 
 void blsys_deinit(void) {
   // TODO: implement
-}
-
-bool blsys_flash_map_get_items(int items, ...) {
-  // TODO: implement
-  return false;
 }
 
 bool blsys_flash_erase(bl_addr_t addr, size_t size) {
