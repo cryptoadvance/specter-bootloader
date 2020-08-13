@@ -23,11 +23,11 @@
 
 /// Table of error strings
 const char* error_text[] = {
-    [-(int)blsig_err_bad_arg] = "bad argument",
-    [-(int) blsig_err_algo_not_supported] = "signature algorithm not supported",
-    [-(int) blsig_err_out_of_memory] = "out of memory",
-    [-(int) blsig_err_duplicating_sig] = "duplicating signature",
-    [-(int) blsig_err_verification_fail] = "signature verification failed"};
+    [-(int)blsig_err_bad_arg] = "Bad argument",
+    [-(int) blsig_err_algo_not_supported] = "Signature algorithm not supported",
+    [-(int) blsig_err_out_of_memory] = "Out of memory",
+    [-(int) blsig_err_duplicating_sig] = "Duplicating signature",
+    [-(int) blsig_err_verification_fail] = "Signature verification failed"};
 
 /// Statically allocated contex
 static struct {
@@ -221,7 +221,7 @@ static int32_t blsig_verify_multisig_internal(
       for (uint32_t idx = 0U; idx < n_sig; ++idx) {
         // Search for a public key with a matching fingerprint
         p_pubkey = find_pubkey(pubkey_set, &sig_recs[idx].fingerprint);
-        if (p_pubkey) {  // If public key is fount, verify the signature
+        if (p_pubkey) {  // If public key is found, verify the signature
           if (verify_signature(verify_ctx, &sig_recs[idx].signature, message,
                                message_len, p_pubkey)) {
             ++n_valid;

@@ -130,6 +130,16 @@ const char* blsig_error_text(int32_t err_code);
 #endif
 
 /**
+ * Checks if the result of signature verification is an error
+ *
+ * @param verification_result  a value returned by blsig_verify_multisig()
+ * @return                     true if the result corresponds to an error
+ */
+static inline bool blsig_is_error(int32_t verification_result) {
+  return (verification_result < 0);
+}
+
+/**
  * Checks if a pointer to a public key points to "end of list" record
  *
  * @param p_key  pointer to public key
