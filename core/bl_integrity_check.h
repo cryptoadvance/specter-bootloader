@@ -79,7 +79,8 @@ bool bl_icr_verify(bl_addr_t sect_addr, uint32_t sect_size, uint32_t* p_pl_ver);
  * @param p_pl_ver   pointer to variable receiving payload version
  * @return           true if valid version is retrieved
  */
-bool bl_icr_get_version(bl_addr_t sect_addr, uint32_t sect_size, uint32_t* p_pl_ver);
+bool bl_icr_get_version(bl_addr_t sect_addr, uint32_t sect_size,
+                        uint32_t* p_pl_ver);
 
 #ifdef __cplusplus
 }  // extern "C"
