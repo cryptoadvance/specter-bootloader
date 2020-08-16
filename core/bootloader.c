@@ -1000,7 +1000,7 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
   }
 
   // Verify multiple signatures
-  blsig_error_t verify_res = 0;
+  int32_t verify_res = 0;
   if (!verify_multisig(&bl_ctx.file_metadata, &bl_pubkey_set, bl_ctx.sigmsg_buf,
                        bl_ctx.sigmsg_items, &verify_res)) {
     const char* err_text = blsig_is_error(verify_res)

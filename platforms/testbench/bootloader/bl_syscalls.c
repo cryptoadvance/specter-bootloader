@@ -24,8 +24,8 @@
 /// Flash memory map
 // clang-format off
 const bl_addr_t bl_flash_map[bl_flash_map_nitems] = {
-  [bl_flash_firmware_base]          = 0x08008000U,
-  [bl_flash_firmware_size]          = (96U + 1760U) * 1024U,
+  [bl_flash_firmware_base]          = 0x08020000U,
+  [bl_flash_firmware_size]          = 1664U * 1024U,
   [bl_flash_bootloader_image_base]  = 0x081C0000U,
   [bl_flash_bootloader_copy1_base]  = 0x081C0000U,
   [bl_flash_bootloader_copy2_base]  = 0x081E0000U,

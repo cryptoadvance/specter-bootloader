@@ -36,6 +36,8 @@ C_SOURCES += $(shell find $(LIB_DIR)/crypto -name *.c)
 C_SOURCES += $(addprefix $(LIB_DIR)/secp256k1/src/,\
 	secp256k1.c \
 	)
+# Public keys
+C_SOURCES += $(CMN_ROOT)/keys/test/test_pubkeys.c
 
 # C includes
 C_INCLUDES =  \
@@ -50,6 +52,7 @@ C_INCLUDES =  \
 
 # C defines
 C_DEFS =  \
+-DTESTBENCH_PROGRESS_NEWLINE \
 -DBL_NO_FATFS \
 -DHAVE_CONFIG_H \
 -DSECP256K1_BUILD \

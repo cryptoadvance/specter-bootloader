@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "bootloader.h"
-#include "bl_syscalls.h"
 
 int main(int argc, char* argv[]) {
   printf("\nBootloader host test bench");
@@ -13,6 +12,7 @@ int main(int argc, char* argv[]) {
 
   printf("\nStarting Bootloader");
   bl_args_t args = {.loaded_from = bl_addr};
-  bl_status_t status = bootloader_run(&args, bl_flag_no_args_crc_check);
+  bl_status_t status = bootloader_run(
+      &args, bl_flag_no_args_crc_check | bl_flag_allow_rc_versions);
   printf("\nBootloader exited with status: %s", bootloader_status_text(status));
 }

@@ -12,7 +12,11 @@ TARGET = bootloader
 # building variables
 ######################################
 # optimization
+ifeq ($(DEBUG), 1)
 OPT = -Og
+else
+OPT = -Os
+endif
 
 #######################################
 # paths
@@ -90,7 +94,7 @@ C_DEFS =  \
 -DHAVE_CONFIG_H \
 -DSECP256K1_BUILD \
 -D__BYTE_ORDER=1234 \
--DCRC32_USE_LOOKUP_TABLE_SLICING_BY_8 \
+-DCRC32_USE_LOOKUP_TABLE_SLICING_BY_4 \
 -Wno-unused-function
 
 # TODO: remove if unneded

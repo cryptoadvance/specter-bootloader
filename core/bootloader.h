@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include "bl_util.h"
 #include "bl_signature.h"
+#include "bl_syscalls.h"
 
 /// Bootloader arguments stored in the Start-up Mailbox
 typedef struct BL_ATTRS((packed)) bl_args_ {
