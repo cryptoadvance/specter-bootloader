@@ -197,7 +197,7 @@ Infinite_Loop:
   .word     SPI3_IRQHandler                   /* SPI3                         */
   .word     UART4_IRQHandler                  /* UART4                        */
   .word     UART5_IRQHandler                  /* UART5                        */
-  .word     TIM6_DAC_IRQHandler               /* TIM6 and DAC1&2 underrun errors */
+  .word     TIM6_DAC_IRQHandler               /* TIM6 and DAC1&2 underrun err.*/
   .word     TIM7_IRQHandler                   /* TIM7                         */
   .word     DMA2_Stream0_IRQHandler           /* DMA2 Stream 0                */
   .word     DMA2_Stream1_IRQHandler           /* DMA2 Stream 1                */
@@ -205,7 +205,7 @@ Infinite_Loop:
   .word     DMA2_Stream3_IRQHandler           /* DMA2 Stream 3                */
   .word     DMA2_Stream4_IRQHandler           /* DMA2 Stream 4                */
   .word     ETH_IRQHandler                    /* Ethernet                     */
-  .word     ETH_WKUP_IRQHandler               /* Ethernet Wakeup through EXTI line */
+  .word     ETH_WKUP_IRQHandler               /* Ethernet Wakeup with EXTI    */
   .word     CAN2_TX_IRQHandler                /* CAN2 TX                      */
   .word     CAN2_RX0_IRQHandler               /* CAN2 RX0                     */
   .word     CAN2_RX1_IRQHandler               /* CAN2 RX1                     */
@@ -219,7 +219,7 @@ Infinite_Loop:
   .word     I2C3_ER_IRQHandler                /* I2C3 error                   */
   .word     OTG_HS_EP1_OUT_IRQHandler         /* USB OTG HS End Point 1 Out   */
   .word     OTG_HS_EP1_IN_IRQHandler          /* USB OTG HS End Point 1 In    */
-  .word     OTG_HS_WKUP_IRQHandler            /* USB OTG HS Wakeup through EXTI */
+  .word     OTG_HS_WKUP_IRQHandler            /* USB OTG HS Wakeup with EXTI  */
   .word     OTG_HS_IRQHandler                 /* USB OTG HS                   */
   .word     DCMI_IRQHandler                   /* DCMI                         */
   .word     0                                 /* Reserved                     */
@@ -228,14 +228,17 @@ Infinite_Loop:
   .word     UART7_IRQHandler                  /* UART7                        */
   .word     UART8_IRQHandler                  /* UART8                        */
   .word     SPI4_IRQHandler                   /* SPI4                         */
-  .word     SPI5_IRQHandler                   /* SPI5 						  */
-  .word     SPI6_IRQHandler                   /* SPI6						  */
-  .word     SAI1_IRQHandler                   /* SAI1						  */
-  .word     LTDC_IRQHandler                   /* LTDC           		      */
-  .word     LTDC_ER_IRQHandler                /* LTDC error          	      */
+  .word     SPI5_IRQHandler                   /* SPI5 						            */
+  .word     SPI6_IRQHandler                   /* SPI6						              */
+  .word     SAI1_IRQHandler                   /* SAI1					            	  */
+  .word     LTDC_IRQHandler                   /* LTDC           		          */
+  .word     LTDC_ER_IRQHandler                /* LTDC error          	        */
   .word     DMA2D_IRQHandler                  /* DMA2D                        */
-  .word     QUADSPI_IRQHandler                /* QUADSPI             	      */
+  .word     QUADSPI_IRQHandler                /* QUADSPI             	        */
   .word     DSI_IRQHandler                    /* DSI                          */
+  .word     Default_Handler                   /* Unused, neded for alignment  */
+  .word     Default_Handler                   /* Unused, neded for alignment  */
+  .word     Default_Handler                   /* Unused, neded for alignment  */
 
 
 /*******************************************************************************

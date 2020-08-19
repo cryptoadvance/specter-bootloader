@@ -10,7 +10,7 @@ ENTRY(Reset_Handler)
 
 /* Generate a link error if heap and stack don't fit into RAM */
 _min_heap_size  = 4K;  /* required amount of heap  */
-_min_stack_size = 64K;  /* required amount of stack */
+_min_stack_size = 32K;  /* required amount of stack */
 
 /* Start of code in RAM, non-remapped address */
 _ram_code_start   = _ram_start;
