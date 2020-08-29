@@ -18,6 +18,16 @@ _ram_code_start   = _ram_start;
 _ram_code_end     = _ram_code_start + LENGTH(RAM_CODE);
 /* Start of code in Flash, the Bootloader is always linked as copy 1 */
 _flash_code_start = ORIGIN(FLASH_BL1);
+/* Start of the Main Firmware */
+_main_firmware_start = ORIGIN(FLASH_MAIN_FW);
+/* Size of the Main Firmware */
+_main_firmware_size = LENGTH(FLASH_MAIN_FW);
+/* Start of the Bootloader copy 1, stored in Flash memory */
+_bl_copy1_start = ORIGIN(FLASH_BL1);
+/* Start of the Bootloader copy 2, stored in Flash memory */
+_bl_copy2_start = ORIGIN(FLASH_BL2);
+/* Base address of Bootloader in HEX file */
+_bl_image_base = _bl_copy1_start;
 
 SECTIONS
 {
