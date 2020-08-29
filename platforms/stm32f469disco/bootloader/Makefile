@@ -65,6 +65,8 @@ C_SOURCES += $(shell find $(LIB_DIR)/crypto -name *.c)
 C_SOURCES += $(addprefix $(LIB_DIR)/secp256k1/src/,\
 	secp256k1.c \
 	)
+# Public keys
+C_SOURCES += $(CMN_ROOT)/keys/test/test_pubkeys.c
 
 # C includes
 C_INCLUDES =  \

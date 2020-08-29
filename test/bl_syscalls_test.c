@@ -44,7 +44,7 @@ size_t flash_emu_size = 0U;
 bool blsys_init(void) {
   flash_emu_buf = (uint8_t*)malloc(flash_emu_size);
   if (!flash_emu_buf) {
-    blsys_fatal_error("unable to allocate flash emulation buffer");
+    blsys_fatal_error("Unable to allocate flash emulation buffer");
   }
   memset(flash_emu_buf, 0xFF, flash_emu_size);
   return true;
@@ -114,7 +114,7 @@ const char* blsys_ffind_first(bl_ffind_ctx_t* ctx, const char* path,
                               const char* pattern) {
   if (ctx && path && pattern) {
     ctx->pattern = strdup(pattern);
-    ctx->dir = opendir(path);
+    ctx->dir = opendir(('\0' == *path || bl_streq(path, "/")) ? "./" : path);
     if (ctx->pattern && ctx->dir) {
       struct dirent* ent;
       do {

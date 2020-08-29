@@ -9,22 +9,11 @@
 
 #include "stm32f4xx_hal.h"
 #include "startup_mailbox.h"
-
-/** @defgroup linker_vars Linker variables
- * @{ */
-/// End of stack
-extern char _estack;
-/// Starting address of Bootloader code in RAM
-extern char _ram_code_start;
-/// Ending address of Bootloader code in RAM
-extern char _ram_code_end;
-/// Starting address of Bootloader code in Flash
-extern char _flash_code_start;
-/** @} */
+#include "linker_vars.h"
 
 /// Bootloader arguments
 __attribute__((section(".startup.const"))) static const bl_args_t bl_args = {
-    .loaded_from = (uint32_t)&_flash_code_start};
+    .loaded_from = LV_VALUE(_flash_code_start)};
 
 /**
  * Executes binary application
@@ -32,7 +21,7 @@ __attribute__((section(".startup.const"))) static const bl_args_t bl_args = {
  * @param l_code_addr  start address, an ISR table
  */
 __attribute__((section(".startup.text"))) static void bin_exec(
-    void* l_code_addr) {
+    const void* l_code_addr) {
   // Both r0 and r1 will hold address of ISR table
   __asm volatile(" mov  r1, r0");
   // Read entry point into r0
@@ -71,8 +60,8 @@ __attribute__((section(".startup.text"))) void debug_startup(void) {
   __asm volatile(" msr  msp, r0");
 
   // Copy Bootloader code from Flash to RAM
-  memcpy32(&_ram_code_start, &_flash_code_start,
-           (uint32_t)(&_ram_code_end) - (uint32_t)(&_ram_code_start));
+  memcpy32(LV_PTR(_ram_code_start), LV_PTR(_flash_code_start),
+           LV_VALUE(_ram_code_end) - LV_VALUE(_ram_code_start));
 
   // Enable clock for SYSCFG
   RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
@@ -100,8 +89,8 @@ __attribute__((section(".startup.text"))) void debug_startup(void) {
 /// Interrupt vectors of the dummy start-up code
 __attribute__((section(".startup.isr_vector")))
 __attribute__((used)) static void (*const vectors_flash[240])(void) = {
-    (void (*)(void))((uint32_t)&_estack),  // Initial value of stack pointer
-    debug_startup                          // Reset handler
+    (void (*)(void))LV_PTR(_estack),  // Initial value of stack pointer
+    debug_startup                     // Reset handler
 };
 
 #else

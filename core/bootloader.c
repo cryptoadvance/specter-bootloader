@@ -19,7 +19,7 @@
 /// Maximum length of file name, including terminating null-character
 #define UPGRADE_FNAME_MAX (256U + 1U)
 /// The directory name where to look for an upgrade file
-#define UPGRADE_PATH "./"  // Current directory
+#define UPGRADE_PATH "/"  // Root directory
 /// Name of the section containing the Bootloader firmware
 #define NAME_BOOT "boot"
 /// Name of the section containing the Main firmware
@@ -28,12 +28,15 @@
 #define PROGRESS_CAPTION "Firmware Upgrade"
 /// Caption text provided used for information messages
 #define INFO_CAPTION "Firmware Upgrade"
-/// Caption text provided used for messages reporting version check result
-#define VERSION_CHECK_CAPTION "Version Check"
 /// Time in ms, while information message is displayed (2 seconds)
 #define INFO_TIME_MS 2000U
+#ifdef BL_IO_BUF_SIZE
 /// Size of statically allocated shared IO buffer
-#define IO_BUF_SIZE 512U
+#define IO_BUF_SIZE BL_IO_BUF_SIZE
+#else
+/// Size of statically allocated shared IO buffer
+#define IO_BUF_SIZE 4096U
+#endif
 /// Maximum number of hash sentence items in the signature message
 #define SIGMSG_MAX_ITEMS 2U
 
@@ -90,19 +93,20 @@ typedef struct progress_ctx_t {
 } progress_ctx_t;
 
 static const upgrading_stage_info_t stage_info[n_upgrading_stages_] = {
-    [stage_read_file] = {.name = "Reading upgrade file", .percent = 5U},
-    [stage_verify_file] = {.name = "Verifying file integrity", .percent = 20U},
+    [stage_read_file] = {.name = "Reading upgrade file", .percent = 2U},
+    [stage_verify_file] = {.name = "Verifying file integrity", .percent = 23U},
     [stage_erase_flash] = {.name = "Erasing flash memory", .percent = 30U},
-    [stage_write_flash] = {.name = "Writing flash memory", .percent = 30},
+    [stage_write_flash] = {.name = "Writing flash memory", .percent = 36},
     [stage_calc_hash] = {.name = "Verifying signatures", .percent = 5U},
-    [stage_verify_sig] = {.name = "Verifying signatures", .percent = 5U},
-    [stage_create_icr] = {.name = "Finishing", .percent = 5U}};
+    [stage_verify_sig] = {.name = "Verifying signatures", .percent = 2U},
+    [stage_create_icr] = {.name = "Finishing", .percent = 2U}};
 
 /// Text strings corresponding to Bootloader statuses
 static const char* status_text[bl_n_statuses_] = {
     [bl_status_normal_exit] = "Normal exit",
     [bl_status_upgrade_complete] = "Upgrade complete",
     [bl_status_err_arg] = "Argument error",
+    [bl_status_err_pubkeys] = "Invalid public key set",
     [bl_status_err_internal] = "Internal error"};
 
 /// Text strings corresponding to version check results
@@ -245,8 +249,7 @@ static bool sanity_check(void) {
   memset(&st, 0, sizeof(st));
 
   return is_le_machine && 0 == NULL && 0 == (int)false && !st.flag && !st.ptr &&
-         (n_upgrading_stages_ + 1) < substage_base_bit_ &&
-         validate_pubkey_set(&bl_pubkey_set);
+         (n_upgrading_stages_ + 1) < substage_base_bit_;
 }
 
 /**
@@ -293,7 +296,7 @@ static version_info_t get_version_info(bl_addr_t bl_addr) {
  * @param flags   flags passed to bootloader_run()
  * @return        true if successful
  */
-static bool init_context(const bl_args_t* p_args, bl_flags_t flags) {
+static bool init_context(const bl_args_t* p_args, uint32_t flags) {
   if (p_args) {
     memset(&bl_ctx, 0, sizeof(bl_ctx));
     bool success = get_flash_memory_map(&bl_ctx.flash_map);
@@ -310,7 +313,6 @@ static bool init_context(const bl_args_t* p_args, bl_flags_t flags) {
  */
 static void init_progress_context(progress_ctx_t* ctx,
                                   const file_metadata_t* p_md) {
-  // TODO generate caption
   memset(ctx, 0, sizeof(progress_ctx_t));
   ctx->upgrade_boot = p_md->boot_section.loaded;
   ctx->upgrade_main = p_md->main_section.loaded;
@@ -399,7 +401,7 @@ static void on_progress_update(void* ctx_in, bl_cbarg_t stage_substage,
  * @param flags   flags
  * @return        true if arguments are valid
  */
-static bool validate_arguments(const bl_args_t* p_args, bl_flags_t flags) {
+static bool validate_arguments(const bl_args_t* p_args, uint32_t flags) {
   if (p_args) {
     if ((flags & bl_flag_no_args_crc_check) ||
         p_args->struct_crc ==
@@ -591,10 +593,10 @@ static bool check_compatibility(const file_metadata_t* p_md,
  * @return           result of version check
  */
 static version_check_res_t check_version(uint32_t new_ver, uint32_t curr_ver,
-                                         bl_flags_t flags) {
+                                         uint32_t flags) {
   if (BL_VERSION_NA == new_ver || new_ver > BL_VERSION_MAX) {
     return version_invalid;
-  } else if (0 == ((int)flags & bl_flag_allow_rc_versions) &&
+  } else if (0 == (flags & bl_flag_allow_rc_versions) &&
              bl_version_is_rc(new_ver)) {  // No RC allowed
     return version_rc_blocked;
   } else if (new_ver > curr_ver) {
@@ -617,8 +619,7 @@ static version_check_res_t check_version(uint32_t new_ver, uint32_t curr_ver,
  * @return       true if upgrade file has higher versions than programmed
  */
 static version_check_res_t check_versions(const file_metadata_t* p_md,
-                                          version_info_t curr,
-                                          bl_flags_t flags) {
+                                          version_info_t curr, uint32_t flags) {
   if (p_md) {
     version_check_res_t check_bl =
         p_md->boot_section.loaded
@@ -718,7 +719,7 @@ static bool erase_flash(const file_metadata_t* p_md, bl_addr_t bl_addr) {
     if (p_md->boot_section.loaded) {
       bl_report_progress(stage_erase_flash | substage_boot, 1U, 0U);
       if (!blsys_flash_erase(get_inactive_bl_addr(bl_addr),
-                             p_md->boot_section.header.pl_size)) {
+                             bl_ctx.flash_map.bootloader_size)) {
         return false;
       }
       bl_report_progress(stage_erase_flash | substage_boot, 1U, 1U);
@@ -726,7 +727,7 @@ static bool erase_flash(const file_metadata_t* p_md, bl_addr_t bl_addr) {
     if (p_md->main_section.loaded) {
       bl_report_progress(stage_erase_flash | substage_main, 1U, 0U);
       if (!blsys_flash_erase(bl_ctx.flash_map.firmware_base,
-                             p_md->main_section.header.pl_size)) {
+                             bl_ctx.flash_map.firmware_size)) {
         return false;
       }
       bl_report_progress(stage_erase_flash | substage_main, 1U, 1U);
@@ -825,15 +826,16 @@ static bool hash_flash_sections(bl_hash_sentence_t* p_msg, size_t* p_msg_items,
     size_t avl_items = *p_msg_items;         // Available items in buffer
 
     if (p_md->boot_section.loaded) {
-      if (!avl_items-- ||
+      if (!avl_items ||
           !blsect_hash_sentence_from_flash(
               &p_md->boot_section.header, get_inactive_bl_addr(bl_addr),
               p_sentence++, stage_calc_hash | substage_boot)) {
         return false;
       }
+      --avl_items;
     }
     if (p_md->main_section.loaded) {
-      if (!avl_items-- ||
+      if (!avl_items ||
           !blsect_hash_sentence_from_flash(
               &p_md->main_section.header, bl_ctx.flash_map.firmware_base,
               p_sentence++, stage_calc_hash | substage_main)) {
@@ -938,6 +940,84 @@ static bool create_icrs(const file_metadata_t* p_md, bl_addr_t bl_addr,
 }
 
 /**
+ * Makes a report regarding a single section of an upgrade file
+ *
+ * @param dst_buf    destination buffer where report string is placed
+ * @param dst_size   size of the destination buffer in bytes
+ * @param sect_name  name of upgrade section
+ * @param p_sect     pointer to section metadata
+ * @param prev_ver   previous version
+ * @return           number of characters written to output buffer not including
+ *                   terminating null-character, or a negative number in case of
+ *                   error
+ */
+static int make_section_report(char* dst_buf, size_t dst_size,
+                               const char* sect_name,
+                               const sect_metadata_t* p_sect,
+                               uint32_t prev_ver) {
+  if (dst_buf && dst_size > 5U && sect_name && p_sect) {
+    if (!p_sect->loaded) {
+      return 0;
+    }
+    char vcurr_str[BL_VERSION_STR_MAX];
+    char vprev_str[BL_VERSION_STR_MAX];
+    if (bl_version_to_str(prev_ver, vprev_str, sizeof(vprev_str)) &&
+        bl_version_to_str(p_sect->header.pl_ver, vcurr_str,
+                          sizeof(vcurr_str))) {
+      return snprintf(dst_buf, dst_size, "%s: %s->%s\n", sect_name,
+                      (BL_VERSION_NA == prev_ver) ? "none" : vprev_str,
+                      vcurr_str);
+    }
+  }
+  return -1;
+}
+
+/**
+ * Makes a report regarding successful upgrade
+ *
+ * @param dst_buf    destination buffer where report string is placed
+ * @param dst_size   size of the destination buffer in bytes
+ * @param file_name  name of an upgrade file used
+ * @param p_md       pointer to upgrade file metadata
+ * @param prev_ver   structure with previous versions
+ * @return           true if successful
+ */
+static bool make_upgrade_report(char* dst_buf, size_t dst_size,
+                                const char* file_name,
+                                const file_metadata_t* p_md,
+                                version_info_t prev_ver) {
+  if (dst_buf && dst_size > 5U && file_name && p_md) {
+    char* p_dst = dst_buf;
+    size_t rm_size = dst_size;
+
+    // Report file used
+    int res = snprintf(p_dst, rm_size, "File: %s\n", file_name);
+    if (res < 0) {
+      return false;
+    }
+    p_dst += res;
+    rm_size -= res;
+
+    // Report Bootloader status
+    res = make_section_report(p_dst, rm_size, "Bootloader", &p_md->boot_section,
+                              prev_ver.bootloader_ver);
+    if (res < 0) {
+      return false;
+    }
+    p_dst += res;
+    rm_size -= res;
+
+    // Report Main Firmware status
+    res = make_section_report(p_dst, rm_size, "Firmware", &p_md->main_section,
+                              prev_ver.main_fw_ver);
+    if (res >= 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Internal function performing firmware upgrade process using an open file
  *
  * @param file    file handle of an open upgrade file
@@ -946,7 +1026,7 @@ static bool create_icrs(const file_metadata_t* p_md, bl_addr_t bl_addr,
  * @return        true if upgrade is complete, false if upgrade ignored
  */
 static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
-                                 bl_flags_t flags) {
+                                 uint32_t flags) {
   // Report beginning of firmware upgrade process directly (via a system call)
   blsys_progress(PROGRESS_CAPTION, stage_info[stage_read_file].name, 0U);
 
@@ -965,14 +1045,22 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
   bl_set_progress_callback(on_progress_update, &bl_ctx.progress_ctx);
 
   // Check versions of payload
-  version_check_res_t version_check = check_versions(
-      &bl_ctx.file_metadata, get_version_info(p_args->loaded_from), flags);
+  version_info_t orig_ver = get_version_info(p_args->loaded_from);
+  version_check_res_t version_check =
+      check_versions(&bl_ctx.file_metadata, orig_ver, flags);
   if (version_same == version_check) {
-    (void)blsys_alert(bl_alert_info, VERSION_CHECK_CAPTION,
-                      get_version_check_text(version_check), INFO_TIME_MS, 0U);
-    return false;
+    // Same version: normally display notice and exit. But if the Main Firmware
+    // is corrupted continue with upgrade (if it has needed payload).
+    if (!bl_ctx.file_metadata.main_section.loaded ||
+        bl_icr_verify(bl_ctx.flash_map.firmware_base,
+                      bl_ctx.flash_map.firmware_size, NULL)) {
+      (void)blsys_alert(bl_alert_info, "Version Check",
+                        get_version_check_text(version_check), INFO_TIME_MS,
+                        0U);
+      return false;
+    }
   } else if (version_check != version_ok) {
-    (void)blsys_alert(bl_alert_error, VERSION_CHECK_CAPTION,
+    (void)blsys_alert(bl_alert_error, "Version Check Failed",
                       get_version_check_text(version_check), BL_FOREVER, 0U);
     return false;
   }
@@ -1006,8 +1094,8 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
     const char* err_text = blsig_is_error(verify_res)
                                ? blsig_error_text(verify_res)
                                : "Not enough signatures";
-    (void)blsys_alert(bl_alert_error, "Signature Verifiaction Failed", err_text,
-                      BL_FOREVER, 0U);
+    (void)blsys_alert(bl_alert_error, "Signature Error", err_text, BL_FOREVER,
+                      0U);
     return false;
   }
 
@@ -1016,6 +1104,15 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
                    &bl_ctx.flash_map)) {
     fatal_error("Error creating integrity check records");
   }
+
+  // Notify the user that upgrade is complete
+  if (!make_upgrade_report(bl_ctx.format_buf, sizeof(bl_ctx.format_buf),
+                           bl_ctx.file_name, &bl_ctx.file_metadata, orig_ver)) {
+    fatal_error("Error preparing upgrade report");
+  }
+  (void)blsys_alert(bl_alert_info, "Upgrade Complete", bl_ctx.format_buf,
+                    BL_FOREVER, 0U);
+
   return true;
 }
 
@@ -1028,7 +1125,7 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
  * @return           true if upgrade is complete, false if upgrade ignored
  */
 static bool do_upgrade(const char* file_name, const bl_args_t* p_args,
-                       bl_flags_t flags) {
+                       uint32_t flags) {
   // Open upgrade file
   bl_file_t file = blsys_fopen(&bl_ctx.file_obj, file_name, "rb");
   if (!file) {
@@ -1042,16 +1139,23 @@ static bool do_upgrade(const char* file_name, const bl_args_t* p_args,
   return result;
 }
 
-bl_status_t bootloader_run(const bl_args_t* p_args, bl_flags_t flags) {
+/**
+ * Runs the Bootloader assuming that the platform is already initialized
+ *
+ * @param p_args  pointer to argument structure
+ * @param flags   flags, a combination of bits defined in bl_flags_t
+ * @return        exit status
+ */
+bl_status_t bootloader_run_initialized(const bl_args_t* p_args,
+                                       uint32_t flags) {
   if (!validate_arguments(p_args, flags)) {
     return bl_status_err_arg;
   }
-  if (!blsys_init()) {
-    return bl_status_err_platform;
-  }
   if (!sanity_check() || !init_context(p_args, flags)) {
-    blsys_deinit();
     return bl_status_err_internal;
+  }
+  if (!validate_pubkey_set(&bl_pubkey_set)) {
+    return bl_status_err_pubkeys;
   }
 
   bl_status_t status = bl_status_normal_exit;
@@ -1066,9 +1170,17 @@ bl_status_t bootloader_run(const bl_args_t* p_args, bl_flags_t flags) {
     }
   }
 
-  blsys_media_umount();
-  blsys_deinit();
   return status;
+}
+
+bl_status_t bootloader_run(const bl_args_t* p_args, uint32_t flags) {
+  if (blsys_init()) {
+    bl_status_t status = bootloader_run_initialized(p_args, flags);
+    blsys_media_umount();
+    blsys_deinit();
+    return status;
+  }
+  return bl_status_err_platform;
 }
 
 const char* bootloader_status_text(bl_status_t status) {

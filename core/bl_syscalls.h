@@ -347,10 +347,19 @@ bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,
  * @param caption       caption text, like "Upgrading Bootloader to v.1.2.3"
  * @param operation     current operation, like "Verifying signature"
  * @param percent_x100  percent of completeness in 0.01% units
- * @param complete      number of complete steps
  */
 void blsys_progress(const char* caption, const char* operation,
                     uint32_t percent_x100);
+
+/**
+ * Starts the firmware from given address in the flash memory
+ *
+ * @param start_addr  start address of the firmware in flash memory
+ * @param argument    argument passed to the executable module
+ * @return            false in case of failure, otherwise the function does not
+ *                    return
+ */
+bool blsys_start_firmware(bl_addr_t start_addr, uint32_t argument);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -15,7 +15,7 @@
 extern char _startup_mailbox_size;
 
 /// Mailbox used by the Start-up code to pass parameters to the Bootloader
-__attribute__((section(".startup_mailbox")))
+__attribute__((section(".startup_mailbox.bss")))
 __attribute__((used)) static bl_args_t startup_mailbox;
 
 /**

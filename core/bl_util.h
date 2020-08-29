@@ -148,6 +148,14 @@ uint32_t bl_percent_x100(uint32_t total, uint32_t complete);
  */
 bool bl_version_to_str(uint32_t version, char* buf, size_t buf_size);
 
+/**
+ * Decodes XML version tag
+ *
+ * @param tag  tag string
+ * @return     decoded version or BL_VERSION_NA in case of failure
+ */
+uint32_t bl_decode_version_tag(const char* tag);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
@@ -160,8 +168,24 @@ bool bl_version_to_str(uint32_t version, char* buf, size_t buf_size);
  * @return false
  */
 static inline bool bl_version_is_rc(uint32_t version) {
-  uint32_t rc_rev = version % 100U;
-  return rc_rev <= 98U;
+  if (version != BL_VERSION_NA && version <= BL_VERSION_MAX) {
+    uint32_t rc_rev = version % 100U;
+    return rc_rev <= 98U;
+  }
+  return false;
+}
+
+/**
+ * No-op function used to keep variable from removal by compiler and linker
+ *
+ * It exists because "volatile" and "__attribute__((used))" do not work in 100%
+ * of cases and modification of linker script is inconvenient and may break
+ * existing projects.
+ *
+ * @param ptr  pointer to a variable
+ */
+static inline void bl_keep_variable(volatile const void* ptr) {
+  (void)*(volatile const char*)ptr;
 }
 
 #endif  // BL_UTIL_H_INCLUDED

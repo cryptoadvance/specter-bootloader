@@ -53,12 +53,11 @@ const char* blsys_platform_id(void) {
 }
 
 bool blsys_init(void) {
-  // TODO read initial state of flash from file
   progress_n_chr = -1;
   progress_prev_text = NULL;
   flash_emu_buf = malloc(FLASH_EMU_SIZE);
   if (!flash_emu_buf) {
-    blsys_fatal_error("unable to allocate flash emulation buffer");
+    blsys_fatal_error("Unable to allocate flash emulation buffer");
   }
   size_t bytes_read = 0U;
   FILE* in_file = fopen(FLASH_EMU_FILE, "rb");
@@ -86,7 +85,7 @@ void blsys_deinit(void) {
     }
     free(flash_emu_buf);
     if (written != FLASH_EMU_SIZE) {
-      blsys_fatal_error("unable to dump emulated flash memory to a file");
+      blsys_fatal_error("Unable to dump emulated flash memory to a file");
     }
   }
 }
@@ -149,7 +148,7 @@ const char* blsys_ffind_first(bl_ffind_ctx_t* ctx, const char* path,
                               const char* pattern) {
   if (ctx && path && pattern) {
     ctx->pattern = strdup(pattern);
-    ctx->dir = opendir(path);
+    ctx->dir = opendir(('\0' == *path || bl_streq(path, "/")) ? "./" : path);
     if (ctx->pattern && ctx->dir) {
       struct dirent* ent;
       do {
@@ -249,7 +248,7 @@ bl_alert_status_t blsys_alert(blsys_alert_type_t type, const char* caption,
     }
   }
 
-  if (arg_error || (BL_FOREVER == time_ms)) {
+  if (arg_error || bl_alert_error == type || (BL_FOREVER == time_ms)) {
     blsys_deinit();
     printf("\nBootloader terminated");
     exit(-1);

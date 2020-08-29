@@ -19,8 +19,13 @@
 
 /// Name used to identify signature section
 #define BL_SIGNATURE_SECT_NAME "sign"
+#ifdef BL_IO_BUF_SIZE
 /// Size of statically allocated shared IO buffer
-#define IO_BUF_SIZE 512U
+#define IO_BUF_SIZE BL_IO_BUF_SIZE
+#else
+/// Size of statically allocated shared IO buffer
+#define IO_BUF_SIZE 4096U
+#endif
 
 /// Statically allocated contex
 static struct {

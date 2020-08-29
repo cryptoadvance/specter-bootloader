@@ -187,7 +187,7 @@ void SystemInit(void)
 #endif /* DATA_IN_ExtSDRAM */
 
   /* Configure the Vector Table location add offset address ------------------*/
-#if 0 // TODO: remove
+#if 0 // Configured by the Start-up code
 #ifdef VECT_TAB_SRAM
   SCB->VTOR = SRAM_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal SRAM */
 #else

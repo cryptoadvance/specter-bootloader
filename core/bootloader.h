@@ -43,6 +43,8 @@ typedef enum bl_status_t_ {
   bl_status_err_arg = bl_status_err_base_,
   // Platform error
   bl_status_err_platform,
+  /// Invalid public key set
+  bl_status_err_pubkeys,
   /// Internal error of bootloader
   bl_status_err_internal,
   /// Number of exit status items, for internal use (not a status)
@@ -78,13 +80,13 @@ extern "C" {
 #endif
 
 /**
- * Runs Bootloader
+ * Runs the Bootloader
  *
  * @param p_args  pointer to argument structure
- * @param flags   flags
+ * @param flags   flags, a combination of bits defined in bl_flags_t
  * @return        exit status
  */
-bl_status_t bootloader_run(const bl_args_t* p_args, bl_flags_t flags);
+bl_status_t bootloader_run(const bl_args_t* p_args, uint32_t flags);
 
 /**
  * Returns a text string corresponding to Bootloader's status
