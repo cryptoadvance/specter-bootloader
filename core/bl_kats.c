@@ -38,11 +38,13 @@ static const uint8_t ref_digest[SHA256_DIGEST_LENGTH] = {
     0xE2U, 0x80U, 0x73U, 0x6AU, 0xF4U, 0x81U, 0xC2U, 0xE8U, 0x06U, 0x41U, 0x12U,
     0x84U, 0xA8U, 0x04U, 0xE0U, 0xD7U, 0x66U, 0xCFU, 0x8CU, 0xBFU, 0x26U};
 
+#if 0 // Currently signature functions are not used => not tested
 // Reference ECDSA private (secret) key, 256 bit
 static const uint8_t ref_seckey[ECDSA_SECKEY_SIZE] = {
     0x97U, 0xBBU, 0x5CU, 0x85U, 0x61U, 0x42U, 0x3BU, 0x38U, 0xA9U, 0x44U, 0x4EU,
     0x9AU, 0x0DU, 0x9BU, 0xF8U, 0xC9U, 0x21U, 0xD5U, 0xB6U, 0x41U, 0xCBU, 0x25U,
     0xFEU, 0x3CU, 0x72U, 0xABU, 0x05U, 0xDFU, 0x7AU, 0xEFU, 0x4EU, 0x35U};
+#endif
 
 // Reference ECDSA public key belonging to secp256k1 curve, uncompressed
 static const uint8_t ref_pubkey[ECDSA_PUBKEY_SIZE] = {
@@ -102,6 +104,7 @@ BL_STATIC_NO_TEST bool do_sha256_kat(void) {
   return false;
 }
 
+#if 0 // Currently signature functions are not used => not tested
 /**
  * Performs signature KAT for ECDSA deterministic signature (secp256k1 curve)
  *
@@ -130,6 +133,7 @@ static bool ecdsa_secp256k1_sign_kat(secp256k1_context* ecdsa_ctx) {
   }
   return false;
 }
+#endif
 
 /**
  * Performs signature KAT for ECDSA verification (secp256k1 curve)
@@ -175,14 +179,13 @@ static bool ecdsa_secp256k1_verify_kat(secp256k1_context* ecdsa_ctx) {
  * @return true  if all tests passed successfully
  */
 BL_STATIC_NO_TEST bool do_ecdsa_secp256k1_kat(void) {
-  const unsigned int flags = SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY;
+  const unsigned int flags = SECP256K1_CONTEXT_VERIFY;
   size_t ctx_size = secp256k1_context_preallocated_size(flags);
   if (ctx_size <= BLSIG_ECDSA_BUF_SIZE) {
     secp256k1_context* ecdsa_ctx =
         secp256k1_context_preallocated_create(blsig_ecdsa_buf, flags);
     if (ecdsa_ctx) {
-      bool success = ecdsa_secp256k1_sign_kat(ecdsa_ctx);
-      success = success && ecdsa_secp256k1_verify_kat(ecdsa_ctx);
+      bool success = ecdsa_secp256k1_verify_kat(ecdsa_ctx);
       secp256k1_context_preallocated_destroy(ecdsa_ctx);
       return success;
     }
