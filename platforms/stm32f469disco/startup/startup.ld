@@ -1,17 +1,16 @@
 /**
- * @file       bootloader.ld
- * @brief      Linker script for building Bootloader
+ * @file       startup.ld
+ * @brief      Linker script for building Start-up code
  * @author     Mike Tolkachev <contact@miketolkachev.dev>
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
  */
 
 /* Default entry point (redefined in debug build) */
-ENTRY(Reset_Handler)
+ENTRY(startup_entry)
 
 /* Generate a link error if heap and stack don't fit into RAM */
 _min_heap_size  = 4K;  /* required amount of heap  */
 _min_stack_size = 32K;  /* required amount of stack */
-
 
 SECTIONS
 {
@@ -22,6 +21,12 @@ SECTIONS
     *(.startup_mailbox.*)
   } >RAM_MAILBOX
 
+  .startup_ver :
+  {
+    . = ALIGN(4);
+    *(.startup_ver.*)
+  } >FLASH_STARTUP_VER
+
   /* Main startup code in RAM */
   .isr_vector :
   {
@@ -29,7 +34,7 @@ SECTIONS
     _bootloader_start = .;
     KEEP(*(.isr_vector)) /* Startup code */
     . = ALIGN(4);
-  } >RAM_CODE AT>FLASH_BL1
+  } >FLASH_STARTUP
 
   /* The program code and other data goes into RAM */
   .text :
@@ -46,7 +51,7 @@ SECTIONS
 
     . = ALIGN(4);
     _etext = .;        /* define a global symbols at end of code */
-  } >RAM_CODE AT>FLASH_BL1
+  } >FLASH_STARTUP
 
   /* Constant data goes into RAM */
   .rodata :
@@ -55,35 +60,35 @@ SECTIONS
     *(.rodata)         /* .rodata sections (constants, strings, etc.) */
     *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
     . = ALIGN(4);
-  } >RAM_CODE AT>FLASH_BL1
+  } >FLASH_STARTUP
 
   .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) } >RAM
   .ARM : {
     __exidx_start = .;
     *(.ARM.exidx*)
     __exidx_end = .;
-  } >RAM_CODE AT>FLASH_BL1
+  } >FLASH_STARTUP
 
   .preinit_array     :
   {
     PROVIDE_HIDDEN (__preinit_array_start = .);
     KEEP (*(.preinit_array*))
     PROVIDE_HIDDEN (__preinit_array_end = .);
-  } >RAM_CODE AT>FLASH_BL1
+  } >FLASH_STARTUP
   .init_array :
   {
     PROVIDE_HIDDEN (__init_array_start = .);
     KEEP (*(SORT(.init_array.*)))
     KEEP (*(.init_array*))
     PROVIDE_HIDDEN (__init_array_end = .);
-  } >RAM_CODE AT>FLASH_BL1
+  } >FLASH_STARTUP
   .fini_array :
   {
     PROVIDE_HIDDEN (__fini_array_start = .);
     KEEP (*(SORT(.fini_array.*)))
     KEEP (*(.fini_array*))
     PROVIDE_HIDDEN (__fini_array_end = .);
-  } >RAM_CODE AT>FLASH_BL1
+  } >FLASH_STARTUP
 
   /* Initialized data sections goes into RAM, load LMA copy after code */
   .data :
@@ -92,7 +97,7 @@ SECTIONS
     *(.data)           /* .data sections */
     *(.data*)          /* .data* sections */
     . = ALIGN(4);
-  } >RAM_CODE AT>FLASH_BL1
+  } >RAM AT>FLASH_STARTUP
 
   /* Uninitialized data section */
   . = ALIGN(4);

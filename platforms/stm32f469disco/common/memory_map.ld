@@ -19,25 +19,43 @@ _bl_sect_size = 128K;
 SRAM1 are remapped */
 _bl_code_size = 112K;
 
-
 MEMORY
 {
-  /* Dummy start-up code used for debuging Bootloader in RAM */
-  FLASH_STARTUP (rx) : ORIGIN = 0x08000000,  LENGTH = 16K
+  /* Start-up code */
+  FLASH_STARTUP (rx)    : ORIGIN = 0x08000000,  LENGTH = (16K - 48)
+  /* Version tag of the Start-up code */
+  FLASH_STARTUP_VER (r) : ORIGIN = 0x8003fd0,  LENGTH = 48
   /* Key storage */
-  FLASH_KEY_STOR(r)  : ORIGIN = 0x08004000,  LENGTH = 16K
+  FLASH_KEY_STOR(r)     : ORIGIN = 0x08004000,  LENGTH = 16K
   /* MicroPython file system */
-  FLASH_UPY_FS(r)    : ORIGIN = 0x08008000,  LENGTH = 96K
+  FLASH_UPY_FS(r)       : ORIGIN = 0x08008000,  LENGTH = 96K
   /* Main Firmware */
-  FLASH_MAIN_FW(rx)  : ORIGIN = 0x08020000,  LENGTH = 1664K
+  FLASH_MAIN_FW(rx)     : ORIGIN = 0x08020000,  LENGTH = 1664K
   /* Bootloader copy 1, stored in the flash memory */
-  FLASH_BL1 (rx)     : ORIGIN = 0x081C0000,  LENGTH = _bl_sect_size
+  FLASH_BL1 (rx)        : ORIGIN = 0x081C0000,  LENGTH = _bl_sect_size
   /* Bootloader copy 2, stored in the flash memory */
-  FLASH_BL2 (rx)     : ORIGIN = 0x081E0000,  LENGTH = _bl_sect_size
+  FLASH_BL2 (rx)        : ORIGIN = 0x081E0000,  LENGTH = _bl_sect_size
   /* SRAM1: code remapped to 0x00000000 */
-  RAM_CODE (xrw)     : ORIGIN = 0x00000000,  LENGTH = _bl_code_size
+  RAM_CODE (xrw)        : ORIGIN = 0x00000000,  LENGTH = _bl_code_size
   /* SRAM2: mailbox used to pass parameters to the Bootloader */
-  RAM_MAILBOX (rw)   : ORIGIN = 0x2001C000,  LENGTH = _startup_mailbox_size
+  RAM_MAILBOX (rw)      : ORIGIN = 0x2001C000,  LENGTH = _startup_mailbox_size
   /* SRAM3: uninitialized data, heap and stack */
-  RAM (rw)           : ORIGIN = 0x20020000,  LENGTH = 128K
+  RAM (rw)              : ORIGIN = 0x20020000,  LENGTH = 128K
 }
+
+/* Start of code in RAM, non-remapped address */
+_ram_code_start   = _ram_start;
+/* End of code in RAM */
+_ram_code_end     = _ram_code_start + LENGTH(RAM_CODE);
+/* Start of code in Flash, the Bootloader is always linked as copy 1 */
+_flash_code_start = ORIGIN(FLASH_BL1);
+/* Start of the Main Firmware */
+_main_firmware_start = ORIGIN(FLASH_MAIN_FW);
+/* Size of the Main Firmware */
+_main_firmware_size = LENGTH(FLASH_MAIN_FW);
+/* Start of the Bootloader copy 1, stored in Flash memory */
+_bl_copy1_start = ORIGIN(FLASH_BL1);
+/* Start of the Bootloader copy 2, stored in Flash memory */
+_bl_copy2_start = ORIGIN(FLASH_BL2);
+/* Base address of Bootloader in HEX file */
+_bl_image_base = _bl_copy1_start;
