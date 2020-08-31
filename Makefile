@@ -17,6 +17,7 @@ endif
 
 .PHONY: $(PLATFORMS) clean test unit_tests
 
+
 clean:
 	-rm -fR build
 
@@ -27,8 +28,8 @@ unit_tests:
 	@$(MAKE) -f test/Makefile
 
 stm32f469disco:
+	@$(MAKE) -f $(STARTUP_MAKEFILE) $(RUN_ARGS) TARGET_PLATFORM=$(TARGET_PLATFORM)
 	@$(MAKE) -f $(BOOTLOADER_MAKEFILE) $(RUN_ARGS) TARGET_PLATFORM=$(TARGET_PLATFORM)
-#  @$(MAKE) -f $(STARTUP_MAKEFILE) $(RUN_ARGS) TARGET_PLATFORM=$(TARGET_PLATFORM)
 
 testbench:
 	$(shell echo Test Bench)
