@@ -99,9 +99,6 @@ C_DEFS =  \
 -DCRC32_USE_LOOKUP_TABLE_SLICING_BY_8 \
 -Wno-unused-function
 
-# TODO: remove if unneded
-#-Wno-nonnull-compare
-
 # ASM sources
 ASM_SOURCES = $(shell find $(LOC_ROOT) -name *.s)
 

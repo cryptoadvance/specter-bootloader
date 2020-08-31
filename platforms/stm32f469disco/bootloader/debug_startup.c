@@ -16,7 +16,7 @@ __attribute__((section(".startup.const"))) static const bl_args_t bl_args = {
     .loaded_from = LV_VALUE(_flash_code_start)};
 
 /**
- * Executes binary application
+ * Executes a binary application
  *
  * @param l_code_addr  start address, an ISR table
  */
