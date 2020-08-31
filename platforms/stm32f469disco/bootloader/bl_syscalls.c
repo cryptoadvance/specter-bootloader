@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "crc32.h"
 #include "bl_util.h"
 #include "bl_syscalls.h"
 #include "stm32469i_discovery.h"
@@ -39,7 +40,7 @@
   (FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | \
    FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR)
 /// Error LED
-#define ERROR_LED LED3
+#define ERROR_LED LED_RED
 /// Text with request to rebbot the device
 #define REBOOT_PROMPT "Press power button to reboot"
 
@@ -447,6 +448,14 @@ bool blsys_flash_write(bl_addr_t addr, const void* buf, size_t len) {
       return (HAL_OK == HAL_FLASH_Lock()) && ok &&
              bl_memeq((const void*)addr, buf, len);
     }
+  }
+  return false;
+}
+
+bool blsys_flash_crc32(uint32_t* p_crc, bl_addr_t addr, size_t len) {
+  if (p_crc && len && check_flash_area(addr, len)) {
+    *p_crc = crc32_fast((const void*)addr, len, *p_crc);
+    return true;
   }
   return false;
 }
