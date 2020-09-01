@@ -111,8 +111,8 @@ static const char* status_text[bl_n_statuses_] = {
 
 /// Text strings corresponding to version check results
 static const char* version_check_res_str[n_version_check_res_] = {
-    [version_ok] = "Version is OK",
     [version_same] = "Same version detected, upgrade skipped",
+    [version_newer] = "Version is newer, suitable for upgrade",
     [version_rc_blocked] = "\"Release candidate\" version is not allowed",
     [version_older] = "Older version detected, downgrade is prohibited",
     [version_invalid] = "Upgrade file contains an invalid version",
@@ -600,7 +600,7 @@ static version_check_res_t check_version(uint32_t new_ver, uint32_t curr_ver,
              bl_version_is_rc(new_ver)) {  // No RC allowed
     return version_rc_blocked;
   } else if (new_ver > curr_ver) {
-    return version_ok;
+    return version_newer;
   } else if (new_ver == curr_ver) {
     return version_same;
   }
@@ -625,21 +625,16 @@ static version_check_res_t check_versions(const file_metadata_t* p_md,
         p_md->boot_section.loaded
             ? check_version(p_md->boot_section.header.pl_ver,
                             curr.bootloader_ver, flags)
-            : version_ok;
+            : version_same;
 
     version_check_res_t check_main =
         p_md->main_section.loaded
             ? check_version(p_md->main_section.header.pl_ver, curr.main_fw_ver,
                             flags)
-            : version_ok;
+            : version_same;
 
-    if (version_ok == check_main && version_ok == check_bl) {
-      return version_ok;
-    } else if (version_ok == check_main && version_same == check_bl) {
-      return version_ok;
-    } else {
-      return check_main >= check_bl ? check_main : check_bl;
-    }
+    // Return check result with the higher rank (severity in case of error)
+    return (int)check_main >= (int)check_bl ? check_main : check_bl;
   }
   return version_invalid;
 }
@@ -1059,7 +1054,7 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
                         0U);
       return false;
     }
-  } else if (version_check != version_ok) {
+  } else if (version_check != version_newer) {
     (void)blsys_alert(bl_alert_error, "Version Check Failed",
                       get_version_check_text(version_check), BL_FOREVER, 0U);
     return false;

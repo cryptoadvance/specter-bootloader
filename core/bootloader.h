@@ -150,12 +150,12 @@ typedef struct version_info_t {
   uint32_t main_fw_ver;
 } version_info_t;
 
-/// Result of version check, ordered by severity of failure
+/// Result of version check ordered by rank, ORDER IS IMPORTANT!
 typedef enum version_check_res_t {
-  /// Upgrade file contains newer version(s), suitable for upgrade
-  version_ok = 0,
   /// Upgrade file contains the same version(s) as programmed in flash memory
-  version_same,
+  version_same = 0,
+  /// Upgrade file contains newer version(s), suitable for upgrade
+  version_newer,
   /// Upgrade file contains at least one RC version and they are not allowed
   version_rc_blocked,
   /// Upgrade file contains at least one older version
