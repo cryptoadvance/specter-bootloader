@@ -11,16 +11,16 @@
             "program": "${workspaceFolder}/tools/upgrade-generator.py",
             "console": "integratedTerminal",
             "args": ["gen", "-b", "build/stm32f469disco/bootloader/release/bootloader.hex",
-                "-f", "firmware.hex", "-k", "mykey.pem", "-p", "stm32f469disco", "upgrade.bin"],
+                "-f", "firmware.hex", "-k", "keys/test/vend1.pem", "-p", "stm32f469disco", "specter_upgrade.bin"],
             "cwd": "${workspaceFolder}"
         },
         {
-            "name": "Python: upgrade-generator sign",
+            "name": "Python: upgrade-generator sign with vend2.pem",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/tools/upgrade-generator.py",
             "console": "integratedTerminal",
-            "args": ["sign", "-k", "mykey2.pem", "upgrade.bin"],
+            "args": ["sign", "-k", "keys/test/vend2.pem", "specter_upgrade.bin"],
             "cwd": "${workspaceFolder}"
         },
         {
@@ -29,7 +29,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/tools/upgrade-generator.py",
             "console": "integratedTerminal",
-            "args": ["dump", "upgrade.bin"],
+            "args": ["dump", "specter_upgrade.bin"],
             "cwd": "${workspaceFolder}"
         },
         {
@@ -46,7 +46,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Debug",
+            "name": "Debug Bootloader",
             "cwd": "${workspaceRoot}",
             "executable": "./build/stm32f469disco/bootloader/debug/bootloader.elf",
             "request": "launch",
@@ -58,6 +58,19 @@
             ],
             "preLaunchTask": "Debug build"
         },
+        {
+          "name": "Debug Start-up code",
+          "cwd": "${workspaceRoot}",
+          "executable": "./build/stm32f469disco/startup/debug/startup.elf",
+          "request": "launch",
+          "type": "cortex-debug",
+          "servertype": "openocd",
+          "svdFile": "./debug/STM32F469.svd",
+          "configFiles": [
+              "board/stm32f469discovery.cfg"
+          ],
+          "preLaunchTask": "Debug build"
+      },
         {
             "name": "Debug testbench",
             "type": "lldb",
