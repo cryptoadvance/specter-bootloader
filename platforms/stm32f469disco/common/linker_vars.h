@@ -49,5 +49,7 @@ LV_EXTERN char _bl_copy1_start;
 LV_EXTERN char _bl_copy2_start;
 // Base address of Bootloader in HEX file
 LV_EXTERN char _bl_image_base;
+// Mailbox used to pass parameters to the Bootloader
+LV_EXTERN char _startup_mailbox;
 
 #endif  // LINKER_VARS_H_INCLUDED

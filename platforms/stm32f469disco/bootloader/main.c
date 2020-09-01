@@ -25,7 +25,7 @@ typedef enum upy_reset_mode_t {
 
 /// Version in the format parced by upgrade-generator
 static const char version_tag[] __attribute__((used)) =
-    "<version:tag10>0100000001</version:tag10>";
+    "<version:tag10>0100000002</version:tag10>";
 
 /**
  * Handles fatal error
@@ -49,7 +49,7 @@ int main(void) {
 
   // Obtain arguments passed by the Start-up code
   bl_args_t args;
-  if (!bl_read_args(&args)) {
+  if (!bl_read_args(LV_PTR(_startup_mailbox), &args)) {
     fatal_error("Internal error (bad arguments passed from the Start-up code)");
   }
 

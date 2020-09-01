@@ -59,3 +59,5 @@ _bl_copy1_start = ORIGIN(FLASH_BL1);
 _bl_copy2_start = ORIGIN(FLASH_BL2);
 /* Base address of Bootloader in HEX file */
 _bl_image_base = _bl_copy1_start;
+/* Mailbox used to pass parameters to the Bootloader */
+_startup_mailbox = ORIGIN(RAM_MAILBOX);

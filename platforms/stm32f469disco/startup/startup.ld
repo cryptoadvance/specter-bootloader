@@ -14,13 +14,6 @@ _min_stack_size = 32K;  /* required amount of stack */
 
 SECTIONS
 {
-  /* Mailbox used by the Start-up code to pass parameters to the Bootloader */
-  .startup_mailbox :
-  {
-    . = ALIGN(4);
-    *(.startup_mailbox.*)
-  } >RAM_MAILBOX
-
   .startup_ver :
   {
     . = ALIGN(4);

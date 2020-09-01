@@ -77,7 +77,7 @@ __attribute__((section(".startup.text"))) void debug_startup(void) {
   __ISB();
 
   // Start the Bootloader at 0x00000000 with default arguments
-  if (bl_write_args(&bl_args)) {
+  if (bl_write_args(LV_PTR(_startup_mailbox), &bl_args)) {
     bin_exec(0x00000000U);
   }
 

@@ -166,7 +166,7 @@ BL_ATTRS((noreturn)) static void fatal_error(startup_error_t error) {
 BL_ATTRS((noreturn))
 static void start_bootloader(bl_addr_t start_addr, const bl_args_t* p_args) {
   // Save the arguments
-  if (bl_write_args(p_args)) {
+  if (bl_write_args(LV_PTR(_startup_mailbox), p_args)) {
     // Copy Bootloader code from Flash to RAM
     memcpy(LV_PTR(_ram_code_start), (const void*)start_addr,
            LV_VALUE(_ram_code_end) - LV_VALUE(_ram_code_start));
