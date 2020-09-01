@@ -6,20 +6,17 @@
  */
 
 #include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 #include "bl_util.h"
 
 /// Number of decimal digits in the XML version tag
 #define VTAG_DIGITS 10U
-/// Opening part of the XML version tag
-#define VTAG_OPENING "<version:tag10>"
-/// Length of the opening part of the XML version tag
-#define VTAG_OPENING_LEN (sizeof(VTAG_OPENING) - 1U)
-/// Closing part of XML version tag
-#define VTAG_CLOSING "</version:tag10>"
-/// Length of the closing part of the XML version tag
-#define VTAG_CLOSING_LEN (sizeof(VTAG_CLOSING) - 1U)
-/// Length of the XML version tag string
-#define VTAG_LEN (VTAG_OPENING_LEN + VTAG_DIGITS + VTAG_CLOSING_LEN)
+/// Offset of the first digit from the beginning of the tag
+#define VTAG_DIGITS_OFFSET 15U
+/// Version tag pattern
+#define VTAG_PATTERN "<vErSiOn:tAg10>..........</VeRsIoN:TaG10>"  // Mixed case
+// is used to avoid this string to be threated as a version tag itself
 
 /// Statically allocated contex
 static struct {
@@ -95,22 +92,43 @@ bool bl_version_to_str(uint32_t version, char* buf, size_t buf_size) {
   return false;
 }
 
+/**
+ * Matches a string to a pattern ignoring case
+ *
+ * This matcher supports only one special character: '.', replacing any
+ * character in the matched string.
+ *
+ * @param pattern  pattern to match
+ * @param str      string to match
+ * @return         true if the string matches the pattern
+ */
+static bool match_pattern_ignore_case(const char* pattern, const char* str) {
+  if (pattern && str) {
+    size_t len = strlen(pattern);
+    if (strlen(str) == len) {
+      for (size_t idx = 0; idx < len; ++idx) {
+        if (pattern[idx] != '.' && toupper(str[idx]) != toupper(pattern[idx])) {
+          return false;
+        }
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
 // TODO test
 uint32_t bl_decode_version_tag(const char* tag) {
-  if (tag && strlen(tag) == VTAG_LEN) {
-    if (0 == strncmp(tag, VTAG_OPENING, VTAG_OPENING_LEN) &&
-        0 == strncmp(tag + VTAG_OPENING_LEN + VTAG_DIGITS, VTAG_CLOSING,
-                     VTAG_CLOSING_LEN)) {
-      uint32_t version = 0U;
-      const char* p_digit = tag + VTAG_OPENING_LEN;
-      for (int i = 0; i < VTAG_DIGITS; ++i) {
-        if (*p_digit < '0' || *p_digit > '9') {
-          return BL_VERSION_NA;
-        }
-        version = version * 10U + (*p_digit++) - '0';
+  if (tag && match_pattern_ignore_case(VTAG_PATTERN, tag)) {
+    uint32_t version = 0U;
+    const char* p_digit = tag + VTAG_DIGITS_OFFSET;
+    for (int i = 0; i < VTAG_DIGITS; ++i) {
+      if (*p_digit < '0' || *p_digit > '9') {
+        return BL_VERSION_NA;
       }
-      return (version <= BL_VERSION_MAX) ? version : BL_VERSION_NA;
+      version = version * 10U + (*p_digit++) - '0';
     }
+    return (version <= BL_VERSION_MAX) ? version : BL_VERSION_NA;
   }
   return BL_VERSION_NA;
 }
