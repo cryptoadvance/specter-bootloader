@@ -93,6 +93,37 @@ def version_to_str(version_num):
         ver_str += f"-rc{rc_rev}"
     return ver_str
 
+def find_payload_version(firmware):
+    if not isinstance(firmware, _byteslike):
+        raise TypeError("Firmware should be bytes-like")
+
+    # Search for version tag in payload
+    idx = firmware.find(VERSION_TAG)
+    if idx < 0:
+        return VERSION_NA
+
+    # Ensure that there is no more version tags
+    idx2 = firmware.find(VERSION_TAG, idx + 1)
+    if idx2 >= 0:
+        raise ValueError("Payload contains more than one version tag")
+
+    # Skip version tag and decode digits
+    idx += len(VERSION_TAG)
+    if len(firmware) < idx + VERSION_DIGITS + len(VERSION_TAG_CLOSE):
+        raise ValueError("Corrupted varsion tag in payload")
+    version_num = int(firmware[idx : (idx + VERSION_DIGITS)])
+    if not is_version_valid(version_num, allow_na=False):
+        raise ValueError("Version number is out of range")
+
+    # Check that closing tag is present
+    idx += VERSION_DIGITS
+    closing_tag = firmware[idx : (idx + len(VERSION_TAG_CLOSE))]
+    if closing_tag != VERSION_TAG_CLOSE:
+        raise ValueError("Corrupted varsion tag in payload")
+
+    # Return version number
+    return version_num
+
 # /// Section header
 # ///
 # /// This structure has fixed size of 256 bytes. All 32-bit words are stored in
@@ -406,32 +437,7 @@ class PayloadSection(Section):
                  self.__payload == other.__payload )
 
     def _find_payload_version(self):
-        # Search for version tag in payload
-        idx = self.__payload.find(VERSION_TAG)
-        if idx < 0:
-            return VERSION_NA
-
-        # Ensure that there is no more version tags
-        idx2 = self.__payload.find(VERSION_TAG, idx + 1)
-        if idx2 >= 0:
-            raise ValueError("Payload contains more than one version tag")
-
-        # Skip version tag and decode digits
-        idx += len(VERSION_TAG)
-        if len(self.__payload) < idx + VERSION_DIGITS + len(VERSION_TAG_CLOSE):
-            raise ValueError("Corrupted varsion tag in payload")
-        version_num = int(self.__payload[idx : (idx + VERSION_DIGITS)])
-        if not is_version_valid(version_num, allow_na=False):
-            raise ValueError("Version number is out of range")
-
-        # Check that closing tag is present
-        idx += VERSION_DIGITS
-        closing_tag = self.__payload[idx : (idx + len(VERSION_TAG_CLOSE))]
-        if closing_tag != VERSION_TAG_CLOSE:
-            raise ValueError("Corrupted varsion tag in payload")
-
-        # Return version number
-        return version_num
+        return find_payload_version(self.__payload)
 
     def _serialize_payload(self):
         return self.__payload

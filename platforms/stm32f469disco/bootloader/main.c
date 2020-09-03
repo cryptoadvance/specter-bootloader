@@ -10,6 +10,7 @@
 #include "bl_integrity_check.h"
 #include "startup_mailbox.h"
 #include "linker_vars.h"
+#include "bl_memmap.h"
 
 /// Reset modes of the MicroPython firmware
 typedef enum upy_reset_mode_t {
@@ -24,8 +25,17 @@ typedef enum upy_reset_mode_t {
 } upy_reset_mode_t;
 
 /// Version in the format parced by upgrade-generator
-static const char version_tag[] __attribute__((used)) =
+static const char version_tag[] BL_ATTRS((used)) =
     "<version:tag10>0100000002</version:tag10>";
+
+/// Embedded memory map record
+// clang-format off
+static const bl_memmap_rec_t memory_map_rec BL_ATTRS((used)) = {
+    BL_MEMMAP_REC_PREDEFINED,
+    .bootloader_size     = LV_VALUE(_bl_sect_size),
+    .main_firmware_start = LV_VALUE(_main_firmware_start),
+    .main_firmware_size  = LV_VALUE(_main_firmware_size)};
+// clang-format on
 
 /**
  * Handles fatal error
@@ -46,6 +56,7 @@ BL_ATTRS((noreturn)) static void fatal_error(const char* text) {
  */
 int main(void) {
   bl_keep_variable(&version_tag);
+  bl_keep_variable(&memory_map_rec);
 
   // Obtain arguments passed by the Start-up code
   bl_args_t args;

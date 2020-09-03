@@ -4,3 +4,5 @@ build
 .venv
 __pycache__
 .coverage
+*.bin
+*.hex
