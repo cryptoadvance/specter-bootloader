@@ -33,7 +33,7 @@
 /// Low intensity text color: bluish light gray
 #define COLOR_TEXT_LOW 0xFF808A96U
 /// Background color: muted dark blue
-#define COLOR_BG 0xFF252E3CU
+#define COLOR_BG 0xFF182432U
 /// Color of controls: bluish gray
 #define COLOR_CONTROL 0xFF4B6073U
 /// Accent color: bright blue
@@ -45,7 +45,7 @@
 /// Caption background for warning alerts
 #define COLOR_WARNING_BG 0xFF885020U
 /// Caption background for information alerts
-#define COLOR_INFO_BG 0xFF208020U
+#define COLOR_INFO_BG 0xFF2C374BU
 
 /// Width of the progress bar
 #define PROGRESS_WIDTH 380U
