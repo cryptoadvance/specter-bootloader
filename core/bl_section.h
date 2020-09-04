@@ -58,6 +58,7 @@ typedef struct BL_ATTRS((packed)) bl_section_t {
 
 /// Hash sentence of a payload section
 typedef struct BL_ATTRS((packed)) bl_hash_sentence_t {
+  /// Raw data
   uint8_t bytes[BL_HASH_SENTENCE_SIZE];
 } bl_hash_sentence_t;
 

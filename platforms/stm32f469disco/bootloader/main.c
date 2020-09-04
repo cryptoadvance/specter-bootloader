@@ -44,7 +44,10 @@ static const bl_memmap_rec_t memory_map_rec BL_ATTRS((used)) = {
  *
  * @param text  error text
  */
-BL_ATTRS((noreturn)) static void fatal_error(const char* text) {
+//! @cond Doxygen_Suppress
+BL_ATTRS((noreturn))
+//! @endcond
+static void fatal_error(const char* text) {
   blsys_init();
   blsys_fatal_error(text);
 }

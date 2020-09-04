@@ -41,15 +41,15 @@ LV_EXTERN char _ram_code_start;
 LV_EXTERN char _main_firmware_start;
 /// Size of the Main Firmware
 LV_EXTERN char _main_firmware_size;
-// Size of flash memory sector where the Bootloader is stored
+/// Size of flash memory sector where the Bootloader is stored
 LV_EXTERN char _bl_sect_size;
-// Start of the Bootloader copy 1, stored in the flash memory
+/// Start of the Bootloader copy 1, stored in the flash memory
 LV_EXTERN char _bl_copy1_start;
-// Start of the Bootloader copy 2, stored in the flash memory
+/// Start of the Bootloader copy 2, stored in the flash memory
 LV_EXTERN char _bl_copy2_start;
-// Base address of Bootloader in HEX file
+/// Base address of Bootloader in HEX file
 LV_EXTERN char _bl_image_base;
-// Mailbox used to pass parameters to the Bootloader
+/// Mailbox used to pass parameters to the Bootloader
 LV_EXTERN char _startup_mailbox;
 
 #endif  // LINKER_VARS_H_INCLUDED

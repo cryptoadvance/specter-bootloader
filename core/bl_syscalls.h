@@ -247,11 +247,11 @@ void blsys_ffind_close(bl_ffind_ctx_t* ctx);
 /**
  * Opens a file
  *
- * @param p_file    pointer to pre-allocated file object, contents are don't
- *                  care
- * @param filename  name of the file to be opened
- * @param mode      string containing POSIX file access mode
- * @return          file handle if successful, NULL if failed
+ * @param p_file_obj  pointer to pre-allocated file object, contents are don't
+ *                    care
+ * @param filename    name of the file to be opened
+ * @param mode        string containing POSIX file access mode
+ * @return            file handle if successful, NULL if failed
  */
 bl_file_t blsys_fopen(bl_file_obj_t* p_file_obj, const char* filename,
                       const char* mode);
@@ -259,11 +259,11 @@ bl_file_t blsys_fopen(bl_file_obj_t* p_file_obj, const char* filename,
 /**
  * Read block of data from file
  *
- * @param ptr     pointer to output buffer, size at least (size*count) bytes
- * @param size    size in bytes of each element to be read
- * @param count   number of elements, each one with a size of size bytes
- * @param p_file  file handle
- * @return        total number of elements successfully read
+ * @param ptr    pointer to output buffer, size at least (size*count) bytes
+ * @param size   size in bytes of each element to be read
+ * @param count  number of elements, each one with a size of size bytes
+ * @param file   file handle
+ * @return       total number of elements successfully read
  */
 size_t blsys_fread(void* ptr, size_t size, size_t count, bl_file_t file);
 

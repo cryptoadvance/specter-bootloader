@@ -35,7 +35,7 @@
 
 /// Maximum allowed value ov version number
 #define BL_VERSION_MAX 4199999999U
-// Version is not available
+/// Version is not available
 #define BL_VERSION_NA 0U
 /// Maximum size of version string including null character
 #define BL_VERSION_STR_MAX 16U

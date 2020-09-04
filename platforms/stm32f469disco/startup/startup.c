@@ -51,15 +51,6 @@ bool blsys_flash_read(bl_addr_t addr, void* buf, size_t len) {
   return false;
 }
 
-/**
- * Calculates CRC32 over a block of data from flash memory
- *
- * @param p_crc  pointer to variable containing initial value of CRC, filled
- *               with updated CRC value on return
- * @param addr   source address in flash memory
- * @param len    number of bytes to read
- * @return       true if successful
- */
 bool blsys_flash_crc32(uint32_t* p_crc, bl_addr_t addr, size_t len) {
   if (p_crc && len) {
     *p_crc = crc32_fast((const void*)addr, len, *p_crc);
@@ -73,7 +64,10 @@ bool blsys_flash_crc32(uint32_t* p_crc, bl_addr_t addr, size_t len) {
  *
  * @param l_code_addr  start address, an ISR table
  */
-BL_ATTRS((noreturn)) static void bin_exec(const void* l_code_addr) {
+//! @cond Doxygen_Suppress
+BL_ATTRS((noreturn))
+//! @endcond
+static void bin_exec(const void* l_code_addr) {
   // Both r0 and r1 will hold address of ISR table
   __asm volatile(" mov  r1, r0");
   // Read entry point into r0
@@ -101,7 +95,15 @@ static inline uint32_t elapsed_clocks(uint32_t clock, uint32_t prev_clock) {
                                : UINT32_MAX - prev_clock + clock + 1U;
 }
 
-BL_ATTRS((optimize("O2"))) static void delay_ms(uint32_t time_ms) {
+/**
+ * Provides a delay expressed in milliseconds
+ *
+ * @param time_ms  time in milliseconds
+ */
+//! @cond Doxygen_Suppress
+BL_ATTRS((optimize("O2")))
+//! @endcond
+static void delay_ms(uint32_t time_ms) {
   uint32_t rm_time = time_ms;
   while (rm_time) {
     for (int idx = 0; idx < (CLOCKS_PER_MS / 10U); ++idx) {
@@ -134,7 +136,10 @@ static inline void err_led_on(bool enable) {
  *
  * @param error  error code
  */
-BL_ATTRS((noreturn)) static void fatal_error(startup_error_t error) {
+//! @cond Doxygen_Suppress
+BL_ATTRS((noreturn))
+//! @endcond
+static void fatal_error(startup_error_t error) {
   // Initialize the LED for error indication
   ERR_LED_GPIO_CLK_ENABLE();
   GPIO_InitTypeDef gpio_led = {.Pin = ERR_LED_GPIO_PIN,

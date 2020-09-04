@@ -41,6 +41,7 @@ typedef enum blsig_error_t {
 
 /// Public key
 typedef struct BL_ATTRS((packed)) bl_pubkey_t {
+  /// Key data
   uint8_t bytes[BL_PUBKEY_SIZE];
 } bl_pubkey_t;
 

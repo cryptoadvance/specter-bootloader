@@ -17,7 +17,7 @@
 #include "bl_syscalls.h"
 
 /// Bootloader arguments stored in the Start-up Mailbox
-typedef struct BL_ATTRS((packed)) bl_args_ {
+typedef struct BL_ATTRS((packed)) bl_args_t {
   uint32_t loaded_from;  ///< Address in Flash of active bootloader
   uint32_t rsv[6];       ///< Reserved arguments, set to 0
   uint32_t struct_crc;   ///< CRC of this structure using LE representation

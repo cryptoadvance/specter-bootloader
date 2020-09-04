@@ -5,6 +5,7 @@
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
  */
 
+/// Forces inclusion of private types
 #define BL_ICR_DEFINE_PRIVATE_TYPES
 #include <string.h>
 #include "crc32.h"
@@ -12,11 +13,11 @@
 #include "bl_util.h"
 #include "bl_syscalls.h"
 
-// Magic word, "INTG" in LE
+/// Magic word, "INTG" in LE
 #define BL_ICR_MAGIC 0x47544E49UL
-// Structure revision
+/// Structure revision
 #define BL_ICR_STRUCT_REV 1U
-// Size of the part of integrity check record that is checked using CRC
+/// Size of the part of integrity check record that is checked using CRC
 #define ICR_CRC_CHECKED_SIZE offsetof(bl_integrity_check_rec_t, struct_crc)
 
 /**

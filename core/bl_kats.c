@@ -66,7 +66,7 @@ static const uint8_t ref_signature[ECDSA_SIG_COMPACT_SIZE] = {
     0xB1U, 0xC3U, 0x07U, 0xACU, 0x40U, 0xA8U, 0x44U, 0xB3U, 0x84U, 0xD7U, 0xA1U,
     0x0EU, 0xC6U, 0xF4U, 0x44U, 0x97U, 0xE7U, 0xACU, 0xE7U, 0x7DU};
 
-// Buffer used by secp256k1 library to allocate context
+/// Buffer used by secp256k1 library to allocate context
 extern uint8_t blsig_ecdsa_buf[BLSIG_ECDSA_BUF_SIZE];
 
 /**

@@ -5,6 +5,7 @@
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
  */
 
+/// Forces inclusion of private types
 #define BOOTLOADER_H_DEFINE_PRIVATE_TYPES
 #include <string.h>
 #include <stdarg.h>
@@ -118,7 +119,7 @@ static const char* version_check_res_str[n_version_check_res_] = {
     [version_invalid] = "Upgrade file contains an invalid version",
 };
 
-/// Empty publik key list
+/// Empty public key list
 static const bl_pubkey_t empty_pubkey_list[] = {BL_PUBKEY_END_OF_LIST};
 // Inert set of public keys and signature thresholds
 const bl_pubkey_set_t bl_pubkey_set BL_ATTRS((weak)) = {
@@ -1141,7 +1142,7 @@ static bool do_upgrade(const char* file_name, const bl_args_t* p_args,
  * @param flags   flags, a combination of bits defined in bl_flags_t
  * @return        exit status
  */
-bl_status_t bootloader_run_initialized(const bl_args_t* p_args,
+static bl_status_t bootloader_run_initialized(const bl_args_t* p_args,
                                        uint32_t flags) {
   if (!validate_arguments(p_args, flags)) {
     return bl_status_err_arg;

@@ -5,6 +5,7 @@
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
  */
 
+/// Forces inclusion of private types
 #define BLSIG_DEFINE_PRIVATE_TYPES
 #include <string.h>
 #include "sha2.h"
