@@ -14,6 +14,13 @@ Python dependencies can installed with hash checking by running:
 pip install --require-hashes -r requirements.txt
 ```
 
+To update requirements.txt with hash generation use:
+
+```
+pip freeze > requirements.in
+pip-compile requirements.in --generate-hashes --allow-unsafe
+```
+
 ## Test key generation
 
 To generate a test key for signing upgrade file use:

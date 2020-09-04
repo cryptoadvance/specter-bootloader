@@ -5,7 +5,6 @@
 
 import getpass
 from intelhex import IntelHex
-from tqdm import tqdm
 import click
 import core.signature as sig
 from core.blsection import *

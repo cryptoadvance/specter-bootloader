@@ -6,3 +6,4 @@ __pycache__
 .coverage
 *.bin
 *.hex
+tools/requirements.in
