@@ -27,13 +27,13 @@ def cli():
 @click.option(
     '-b', '--bootloader', 'bootloader_hex',
     type=click.File('r'),
-    help='Intel HEX file containing Bootloader.',
+    help='Intel HEX file containing the Bootloader.',
     metavar='<file.hex>'
 )
 @click.option(
     '-f', '--firmware', 'firmware_hex',
     type=click.File('r'),
-    help='Intel HEX file containing Firmware.',
+    help='Intel HEX file containing the Main Firmware.',
     metavar='<file.hex>'
 )
 @click.option(
@@ -90,7 +90,7 @@ def generate(upgrade_file, bootloader_hex, firmware_hex, platform, key_pem):
 
 @ cli.command(
     'sign',
-    short_help='sign existing upgrade file'
+    short_help='sign an existing upgrade file'
 )
 @ click.option(
     '-k', '--private-key', 'key_pem',
@@ -106,7 +106,7 @@ def generate(upgrade_file, bootloader_hex, firmware_hex, platform, key_pem):
     metavar='<upgrade_file.bin>'
 )
 def sign(upgrade_file, key_pem):
-    """This command adds a signature to an existing firmware file. Private key
+    """This command adds a signature to an existing upgrade file. Private key
     should be provided in PEM container with or without encryption.
 
     The signature is checked for duplication, and any duplicating signatures
