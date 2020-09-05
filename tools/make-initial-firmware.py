@@ -43,15 +43,22 @@ def cli():
     help='Intel HEX file containing the Main Firmware.',
     metavar='<file.hex>'
 )
+@click.option(
+    '-bin', '--bin-output', 'bin_out',
+    required=False,
+    is_flag=True,
+    default=False,
+    help='Outputs firmware in raw binary format.'
+)
 @click.argument(
     'out_file',
     required=True,
     type=click.STRING,
-    metavar='<initial_firmware.hex>'
+    metavar='<output_file_name>'
 )
-def combine(out_file, startup_hex, bootloader_hex, firmware_hex):
+def combine(out_file, startup_hex, bootloader_hex, firmware_hex, bin_out):
     """This command makes a firmare file for initial programming of a "clean"
-    defice. This firmware file is made by combining together the Start-up code,
+    defice. The firmware file is made by combining together the Start-up code,
     the Bootloader, and, optionally, the Main Firmware.
     """
 
@@ -73,8 +80,13 @@ def combine(out_file, startup_hex, bootloader_hex, firmware_hex):
         intelhex_add_icr(main_ih, memmap['main_firmware_size'])
         out_ih.merge(main_ih, overlap='ignore')
 
-    # Write resulting HEX file
-    out_ih.write_hex_file(out_file)
+    # Write resulting firmware in HEX or binary format
+    if bin_out:
+      file_obj = open(out_file, "wb")
+      file_obj.write(intelhex_to_bytes(out_ih))
+      file_obj.close()
+    else:
+      out_ih.write_hex_file(out_file)
 
 
 def intelhex_to_bytes(ih_obj):
