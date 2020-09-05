@@ -8,6 +8,7 @@
 #include <string.h>
 #include "crc32.h"
 #include "stm32469i_discovery.h"
+#include "bl_util.h"
 #include "bl_integrity_check.h"
 #include "startup_mailbox.h"
 #include "linker_vars.h"
@@ -252,7 +253,8 @@ int main(void) {
 
   // Start the Bootloader
   bl_addr_t bl_addr = select_bootloader();
-  bl_args_t bl_args = {.loaded_from = bl_addr};
+  bl_args_t bl_args = {.loaded_from = bl_addr,
+                       .startup_version = bl_decode_version_tag(version_tag)};
   start_bootloader(bl_addr, &bl_args);
 }
 

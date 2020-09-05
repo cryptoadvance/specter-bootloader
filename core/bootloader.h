@@ -18,9 +18,10 @@
 
 /// Bootloader arguments stored in the Start-up Mailbox
 typedef struct BL_ATTRS((packed)) bl_args_t {
-  uint32_t loaded_from;  ///< Address in Flash of active bootloader
-  uint32_t rsv[6];       ///< Reserved arguments, set to 0
-  uint32_t struct_crc;   ///< CRC of this structure using LE representation
+  uint32_t loaded_from;      ///< Address in Flash of active bootloader
+  uint32_t startup_version;  ///< Version of the Start-up code
+  uint32_t rsv[5];           ///< Reserved arguments, set to 0
+  uint32_t struct_crc;       ///< CRC of this structure using LE representation
 } bl_args_t;
 
 /// Bootloader flags
@@ -165,6 +166,15 @@ typedef enum version_check_res_t {
   /// Number of enumerated values in version_check_res_t (not a check result)
   n_version_check_res_
 } version_check_res_t;
+
+/// Version identifiers
+typedef enum version_id_t {
+  version_id_startup = 0, ///< Version of the Start-up code
+  version_id_bootloader1, ///< Version of Bootloader's 1-st copy
+  version_id_bootloader2, ///< Version of Bootloader's 2-st copy
+  version_id_main,        ///< Version of the Main Firmware
+  n_version_id_           ///< Number of version identifiers (not an identifier)
+} version_id_t;
 
 #endif  // BOOTLOADER_H_DEFINE_PRIVATE_TYPES
 

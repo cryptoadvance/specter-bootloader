@@ -44,6 +44,7 @@ C_SOURCES  = $(shell find $(LOC_ROOT) -name *.c)
 # Bootloader core
 C_SOURCES += $(addprefix $(CORE_DIR)/,\
 	bl_integrity_check.c \
+	bl_util.c \
 	startup_mailbox.c \
 	)
 # STM32F4xx HAL

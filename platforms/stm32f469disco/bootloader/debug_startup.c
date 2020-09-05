@@ -13,7 +13,7 @@
 
 /// Bootloader arguments
 __attribute__((section(".startup.const"))) static const bl_args_t bl_args = {
-    .loaded_from = LV_VALUE(_flash_code_start)};
+    .loaded_from = LV_VALUE(_flash_code_start), .startup_version = 1U};
 
 /**
  * Executes a binary application

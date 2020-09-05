@@ -17,6 +17,8 @@
 
 /// Pattern used to search for upgrade files
 #define UPGRADE_FILES "specter_upgrade*.bin"
+/// Flag file triggering version information display
+#define SHOW_VERSION_FILE ".show_version"
 /// Maximum length of file name, including terminating null-character
 #define UPGRADE_FNAME_MAX (256U + 1U)
 /// The directory name where to look for an upgrade file
@@ -31,6 +33,8 @@
 #define INFO_CAPTION "Firmware Upgrade"
 /// Time in ms, while information message is displayed (2 seconds)
 #define INFO_TIME_MS 2000U
+/// Time in ms, while version information is displayed (5 seconds)
+#define VERSION_DISPLAY_TIME_MS 5000U
 #ifdef BL_IO_BUF_SIZE
 /// Size of statically allocated shared IO buffer
 #define IO_BUF_SIZE BL_IO_BUF_SIZE
@@ -435,13 +439,14 @@ static inline bl_addr_t get_inactive_bl_addr(bl_addr_t bl_addr) {
 }
 
 /**
- * Scans all media devices looking for an upgrade file
+ * Scans all media devices looking for a specific file
  *
  * @param path     the directory name where to look for an upgrade file
  * @param pattern  the name matching pattern
  * @return         file name, or NULL if not found
  */
-static const char* find_upgrade_file(const char* path, const char* pattern) {
+static const char* find_file(const char* path, const char* pattern) {
+  blsys_media_umount();
   uint32_t n_dev = blsys_media_devices();
   for (uint32_t dev_idx = 0U; dev_idx < n_dev; ++dev_idx) {
     if (blsys_media_check(dev_idx)) {
@@ -1136,6 +1141,108 @@ static bool do_upgrade(const char* file_name, const bl_args_t* p_args,
 }
 
 /**
+ * Makes a report regarding versions of firmware components
+ *
+ * Version numbers are provided in versions[] array stored at indexes defined
+ * in version_id_t.
+ *
+ * @param dst_buf      destination buffer where report string is placed
+ * @param dst_size     size of the destination buffer in bytes
+ * @param versions     array with versions of firmware components
+ * @param n_versions   number of elements in versions[] array
+ * @param active_bl    version identifier corresponding to an active bootloader
+ * @return             true if successful
+ */
+static bool make_version_report(char* dst_buf, size_t dst_size,
+                                const uint32_t* versions, size_t n_versions,
+                                int active_bl) {
+  static const char ver_none[] = "none";
+  if (dst_buf && dst_size && n_versions <= n_version_id_ &&
+      (version_id_bootloader1 == active_bl ||
+       version_id_bootloader2 == active_bl) &&
+      BL_VERSION_STR_MAX >= sizeof(ver_none)) {
+    // Convert version numbers to strings
+    static const char marker[] = "*";
+    char ver_str[n_version_id_][BL_VERSION_STR_MAX + sizeof(marker) + 1U];
+    for (int idx = 0; idx < n_version_id_; ++idx) {
+      if (idx < n_versions) {
+        if (BL_VERSION_NA == versions[idx]) {  // If version is invalid
+          strcpy(ver_str[idx], ver_none);
+        } else {
+          if (!bl_version_to_str(versions[idx], ver_str[idx],
+                                 BL_VERSION_STR_MAX)) {
+            return false;
+          }
+        }
+        if (idx == active_bl) {  // Mark active bootloader with asterisk
+          size_t max_chars = sizeof(ver_str[0]) - BL_VERSION_STR_MAX - 1U;
+          strncat(ver_str[idx], marker, max_chars);
+        }
+      } else {  // If version number is not provided, make an empty string
+        ver_str[idx][0] = '\0';
+      }
+    }
+
+    // Generate text
+    // clang-format off
+    int text_len = snprintf(
+      dst_buf, dst_size,
+      "Start-up    : %s\n"   \
+      "Bootloader 1: %s\n"   \
+      "Bootloader 2: %s\n"   \
+      "Firmware    : %s\n\n" \
+      "* - active bootloader",
+      ver_str[version_id_startup],
+      ver_str[version_id_bootloader1],
+      ver_str[version_id_bootloader2],
+      ver_str[version_id_main]
+    );
+    // clang-format on
+
+    return text_len > 0;
+  }
+  return false;
+}
+
+/**
+ * Shows version information alert
+ *
+ * @param p_args  arguments of bootloader_run()
+ * @param flags   flags passed to bootloader_run()
+ */
+static void show_version(const bl_args_t* p_args, uint32_t flags) {
+  if (!p_args) {
+    fatal_error("Internal error");
+  }
+
+  // Get versions of firmware components
+  uint32_t versions[] = {[version_id_startup] = p_args->startup_version,
+                         [version_id_bootloader1] = BL_VERSION_NA,
+                         [version_id_bootloader2] = BL_VERSION_NA,
+                         [version_id_main] = BL_VERSION_NA};
+  const flash_map_t* p_map = &bl_ctx.flash_map;
+  (void)bl_icr_get_version(p_map->bootloader_copy1_base, p_map->bootloader_size,
+                           &versions[version_id_bootloader1]);
+  (void)bl_icr_get_version(p_map->bootloader_copy2_base, p_map->bootloader_size,
+                           &versions[version_id_bootloader2]);
+  (void)bl_icr_get_version(p_map->firmware_base, p_map->firmware_size,
+                           &versions[version_id_main]);
+
+  // Make version report
+  if (!make_version_report(bl_ctx.format_buf, sizeof(bl_ctx.format_buf),
+                           versions, sizeof(versions) / sizeof(versions[0]),
+                           (p_args->loaded_from == p_map->bootloader_copy1_base)
+                               ? version_id_bootloader1
+                               : version_id_bootloader2)) {
+    fatal_error("Error preparing version report");
+  }
+
+  // Display message with version information
+  (void)blsys_alert(bl_alert_info, "Version Information", bl_ctx.format_buf,
+                    VERSION_DISPLAY_TIME_MS, 0U);
+}
+
+/**
  * Runs the Bootloader assuming that the platform is already initialized
  *
  * @param p_args  pointer to argument structure
@@ -1143,7 +1250,7 @@ static bool do_upgrade(const char* file_name, const bl_args_t* p_args,
  * @return        exit status
  */
 static bl_status_t bootloader_run_initialized(const bl_args_t* p_args,
-                                       uint32_t flags) {
+                                              uint32_t flags) {
   if (!validate_arguments(p_args, flags)) {
     return bl_status_err_arg;
   }
@@ -1155,7 +1262,7 @@ static bl_status_t bootloader_run_initialized(const bl_args_t* p_args,
   }
 
   bl_status_t status = bl_status_normal_exit;
-  const char* file_name = find_upgrade_file(UPGRADE_PATH, UPGRADE_FILES);
+  const char* file_name = find_file(UPGRADE_PATH, UPGRADE_FILES);
   if (file_name) {
     if (bl_run_kats()) {
       if (do_upgrade(file_name, p_args, flags)) {
@@ -1164,6 +1271,11 @@ static bl_status_t bootloader_run_initialized(const bl_args_t* p_args,
     } else {
       status = bl_status_err_internal;
     }
+  }
+
+  if (bl_status_normal_exit == status &&
+      find_file(UPGRADE_PATH, SHOW_VERSION_FILE)) {
+    show_version(p_args, flags);
   }
 
   return status;
