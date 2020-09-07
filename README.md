@@ -23,7 +23,7 @@ The Bootloader implements all the steps of the firmware upgrade process:
 - Copies payload from an upgrade file to internal flash memory
 - Verifies the signatures and makes the firmware runnable if they are valid
 
-More details are provided in the [Bootloader Specification](#/doc/bootloader-spec.md) document.
+More details are provided in the [Bootloader Specification](/doc/bootloader-spec.md) document.
 
 ## Building
 
@@ -64,7 +64,7 @@ This project includes a set of tools used:
 - To create a specialized firmware intended for a "clean" device
 - To create test vectors used in known answer tests for the cryptographic algorithms which do not have such vectors published "officially."
 
-For more information please see [Tools documentation](#/tools/README.md)
+For more information please see [Tools documentation](/tools/README.md)
 
 ## Usage
 
@@ -77,4 +77,4 @@ Use the following steps as an idea of a typical use case:
 - Copy your upgrade file to a root directory of a microSD card, insert it in the device, and reboot
 - To get version information on each power-on, create an empty file named ".show_version" in the card's root directory
 
-For additional information on provided tools please see [Tools documentation](#/tools/README.md).
+For additional information on provided tools please see [Tools documentation](/tools/README.md).
