@@ -76,7 +76,7 @@ def generate(upgrade_file, bootloader_hex, firmware_hex, platform, key_pem):
             bootloader_hex, 'boot', platform))
     if firmware_hex:
         sections.append(create_payload_section(
-            firmware_hex, 'internal', platform))
+            firmware_hex, 'main', platform))
     if not len(sections):
         raise click.ClickException("No input file specified")
 

@@ -26,7 +26,7 @@
 /// Name of the section containing the Bootloader firmware
 #define NAME_BOOT "boot"
 /// Name of the section containing the Main firmware
-#define NAME_MAIN "internal"
+#define NAME_MAIN "main"
 /// Caption text provided to progress reporting function
 #define PROGRESS_CAPTION "Firmware Upgrade"
 /// Caption text provided used for information messages

@@ -28,8 +28,8 @@
 *   Bootloader upgrade: two copies of bootloader and non-upgradable start-up code
 *   Downgrade: prohibited for the Bootloader and the Main Firmware
 *   Firmware file contains the following sections:
-    *   One or several payload sections, including “internal” and “boot”
-    *   Signature section “sign”
+    *   One or several payload sections, including "main" and "boot"
+    *   Signature section "sign"
 *   Each section of the firmware file has its own header and is protected by a separate CRC code
 *   The digital signature is calculated over all payload sections
 *   Key hierarchy:
@@ -61,19 +61,19 @@ These steps are performed by the Start-up code, non-upgradable part of Bootloade
 
 ### Firmware upgrade procedure
 
-In case any of the steps 1-5 fails, the Bootloader unmounts the SD card and proceeds with a normal boot described under “Normal boot procedure”. In other cases, the microcontroller is rebooted, unmounting the SD card beforehand.
+In case any of the steps 1-5 fails, the Bootloader unmounts the SD card and proceeds with a normal boot described under "Normal boot procedure". In other cases, the microcontroller is rebooted, unmounting the SD card beforehand.
 
 1. Ensure that the SD card is inserted.
 2. Mount the file system.
-3. Find a firmware file having a predetermined name format and extension, like “specter_upgrade_v1.05.01.bin” using a pattern “specter_upgrade*.bin” in the root directory of SD card. Presence of more than one matching files aborts upgrade process.
+3. Find a firmware file having a predetermined name format and extension, like "specter_upgrade_v1.05.01.bin" using a pattern "specter_upgrade*.bin" in the root directory of SD card. Presence of more than one matching files aborts upgrade process.
 4. Read fixed-size headers of all sections from the firmware file into RAM, check their CRC. The presence of any unknown section aborts the firmware upgrade process.
 5. Obtain and verify version information from the headers, including:
     1. Version of Firmware, check if it is later than currently programmed
-    2. Version of Bootloader if “boot” section exists, check if it is later than programmed
+    2. Version of Bootloader if "boot" section exists, check if it is later than programmed
 6. Verify the correctness of all parameters from headers and that the firmware is compatible with the platform on which the Bootloader is running.
-7. Verify that the last section is the “sign” section. Parse its contents extracting fingerprint-signature pairs, creating a table in RAM. Ensure that:
+7. Verify that the last section is the "sign" section. Parse its contents extracting fingerprint-signature pairs, creating a table in RAM. Ensure that:
     3. A public key with a provided fingerprint exists in the pre-defined table stored within the Bootloader. Otherwise, remove the signature from the RAM table.
-    4. The key referenced by the fingerprint is capable to sign the given payload. Otherwise, remove the signature from the RAM table. The use of Maintainer keys is not allowed to sign a firmware file containing the “boot” section.
+    4. The key referenced by the fingerprint is capable to sign the given payload. Otherwise, remove the signature from the RAM table. The use of Maintainer keys is not allowed to sign a firmware file containing the "boot" section.
     5. The key referenced by fingerprint was not encountered in the RAM table before. Otherwise, remove the duplicating signature from the RAM table.
     6. The number of remaining signatures is not less than a predefined minimum signature threshold (a separate threshold for the Firmware and for the Bootloader).
 8. Verify the integrity of all payload sections using the CRC algorithm.
@@ -102,7 +102,7 @@ Semantic versioning is used in the following format MAJOR.MINOR.PATCH[-rcREVISIO
 * PATCH: (0 ... 999) x 1e2
 * REVISION: 0 ... 98 - release candidate, 99 - stable version
 
-For example, version “1.22.134-rc5” is coded as 102213405 decimal (0x617a71d). REVISION component is used **only for release candidates**. For the stable versions, revision is always equal to 99 to position them in history “later” than any release candidate and blocking downgrading to non-stable versions. Another example: a stable version “12.0.15” is coded as 1200001599. Maximally supported version is “41.999.999”, which equals to 4199999999 (0xfa56e9ff). Versions above this number are considered invalid. Version constant 0x00000000 is reserved for “undefined” value.
+For example, version "1.22.134-rc5" is coded as 102213405 decimal (0x617a71d). REVISION component is used **only for release candidates**. For the stable versions, revision is always equal to 99 to position them in history "later" than any release candidate and blocking downgrading to non-stable versions. Another example: a stable version "12.0.15" is coded as 1200001599. Maximally supported version is "41.999.999", which equals to 4199999999 (0xfa56e9ff). Versions above this number are considered invalid. Version constant 0x00000000 is reserved for "undefined" value.
 
 > The Bootloader may have an option allowing only stable versions (REVISION equal to 99) to be flashed into end-user devices.
 
@@ -117,7 +117,7 @@ Each section stored in the firmware file has a fixed size header, as defined in 
 // little-endian format. CRC is calculated over first 252 bytes of this
 // structure.
 typedef struct {
-  uint32_t magic;         // Magic word, BL_SECT_MAGIC (“SECT”, 0x54434553 LE)
+  uint32_t magic;         // Magic word, BL_SECT_MAGIC ("SECT", 0x54434553 LE)
   uint32_t struct_rev;    // Revision of structure format
   char name[16];          // Name, zero terminated, unused bytes are 0x00
   uint32_t pl_ver;        // Payload version, 0 if not available
@@ -128,7 +128,7 @@ typedef struct {
 } bl_section_t;
 ```
 
-Parameter `name` contains a zero-terminated string with a section name, one of “internal”, “boot”, “sign” or probably other variants in the future versions.
+Parameter `name` contains a zero-terminated string with a section name, one of "main", "boot", "sign" or probably other variants in the future versions.
 
 Array `attr_list[]` contains a list of required and optional attributes, specific to each type of section.  Each attribute record consists of **key** byte, **size** byte, and optionally **value** field (0...214 bytes) whose length is specified in the size byte. Keys are unique within the attribute list and have the same meaning for each section.
 
@@ -141,16 +141,16 @@ String attributes are stored without terminating null characters and are limited
 The signature section has a standard section header with the following specifics:
 
 ```c
-.name = “sign”
+.name = "sign"
 .pl_ver = 0
 .attr_list = { bl_attr_algorithm, 16, 's', 'e', 'c', 'p', '2', '5', '6', 'k', '1', '-', 's', 'h', 'a', '2', '5', '6', ... }
 ```
 
-Section name “sign” is used to identify the signature section. Only one signature section is allowed and it must be the last section in an upgrade file.
+Section name "sign" is used to identify the signature section. Only one signature section is allowed and it must be the last section in an upgrade file.
 
-Attribute array must contain at least one required attribute, `bl_attr_algorithm` specifying digital signature algorithm as a string. Currently, only “secp256k1-sha256” is supported.
+Attribute array must contain at least one required attribute, `bl_attr_algorithm` specifying digital signature algorithm as a string. Currently, only "secp256k1-sha256" is supported.
 
-The contents of the signature section is a list of fingerprint-signature pairs. When “secp256k1-sha256” is specified, the fingerprint is 16 first bytes of SHA-256 hash of the uncompressed public key (65 bytes, beginning with 0x04), and the signature is a 64-byte compact signature:
+The contents of the signature section is a list of fingerprint-signature pairs. When "secp256k1-sha256" is specified, the fingerprint is 16 first bytes of SHA-256 hash of the uncompressed public key (65 bytes, beginning with 0x04), and the signature is a 64-byte compact signature:
 
 ```text
   0x00000000  [16]: SHA-256(pubkey1), [64]: signature1
@@ -184,13 +184,13 @@ Entry point for the firmware modules intended for ARM Cortex-M4 platform is stor
 
 ### Embedded version tag
 
-In the source firmware files payload version is defined with an embedded XML-like version tag: **&lt;version:tag10>** followed by exactly 10 decimal digits specifying semantic version as defined in “Version Format” subsection. For example, version “1.22.134-rc5” is defined by:
+In the source firmware files payload version is defined with an embedded XML-like version tag: **&lt;version:tag10>** followed by exactly 10 decimal digits specifying semantic version as defined in "Version Format" subsection. For example, version "1.22.134-rc5" is defined by:
 
 ```xml
 <version:tag10>102213405</version:tag10>
 ```
 
-This tag could be included anywhere within the firmware body. Upgrade generator searches the firmware image for an embedded version tag after conversion from Intel HEX format to linear binary image. If the version tag is not found, the firmware version is considered “undefined”. If the firmware includes more than one version tag (of the same format), the firmware is considered invalid.
+This tag could be included anywhere within the firmware body. Upgrade generator searches the firmware image for an embedded version tag after conversion from Intel HEX format to linear binary image. If the version tag is not found, the firmware version is considered "undefined". If the firmware includes more than one version tag (of the same format), the firmware is considered invalid.
 
 ### Embedded memory map
 
@@ -239,7 +239,7 @@ typedef struct {
 // little-endian format. CRC is calculated over first 28 bytes byte of this
 // structure.
 typedef struct {
-  uint32_t magic;          // Magic word, BL_ICR_MAGIC (“INTG”, 0x47544E49 LE)
+  uint32_t magic;          // Magic word, BL_ICR_MAGIC ("INTG", 0x47544E49 LE)
   uint32_t struct_rev;     // Revision of structure format
   uint32_t pl_ver;         // Payload version, 0 if not available
   bl_icr_sect_t main_sect; // Main section
