@@ -274,7 +274,7 @@ class TestSignatureSection:
             Section.deserialize(data, 0)
 
 def test_make_signature_message():
-    s = [PayloadSection('boot'), PayloadSection('internal')]
+    s = [PayloadSection('boot'), PayloadSection('main')]
     m = make_signature_message(s)
     assert m == s[0].get_hash_sentence() + s[1].get_hash_sentence()
     s.append(SignatureSection())
