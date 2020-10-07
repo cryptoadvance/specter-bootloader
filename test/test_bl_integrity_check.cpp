@@ -32,7 +32,6 @@ static const uint32_t ref_payload_crc = 0x77AC5BCCU;
 /// Reference payload version
 const uint32_t ref_version = 102213405U;  // "1.22.134-rc5"
 
-// TODO add tests
 TEST_CASE("Integrity check record: internals") {
   FlashBuf flash(ref_payload, sizeof(ref_payload));
   bl_integrity_check_rec_t icr;
