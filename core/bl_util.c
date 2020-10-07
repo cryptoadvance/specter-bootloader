@@ -4,6 +4,7 @@
  * @author     Mike Tolkachev <contact@miketolkachev.dev>
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
  */
+// TODO test
 
 #include <stdio.h>
 #include <string.h>
@@ -17,6 +18,12 @@
 /// Version tag pattern
 #define VTAG_PATTERN "<vErSiOn:tAg10>..........</VeRsIoN:TaG10>"  // Mixed case
 // is used to avoid this string to be threated as a version tag itself
+
+/// Version format identifier
+typedef enum version_fmt_t {
+  version_fmt_display,   ///< Format for display
+  version_fmt_signature  ///< Format for signature message
+} version_fmt_t;
 
 /// Statically allocated contex
 static struct {
@@ -36,6 +43,19 @@ bool bl_memveq(const void* ptr, int value, size_t num) {
       }
     }
     return true;
+  }
+  return false;
+}
+
+bool bl_strcat_checked(char *dst, size_t dst_size, const char *src) {
+  if(dst && src && dst_size > 1U) {
+    size_t dst_len = strlen(dst);
+    size_t src_len = strlen(src);
+    if(dst_len + src_len + 1U <= dst_size) {
+      // Copy src string after dst string including terminating null-character
+      memcpy(dst + dst_len, src, src_len + 1U);
+      return true;
+    }
   }
   return false;
 }
@@ -67,11 +87,30 @@ uint32_t bl_percent_x100(uint32_t total, uint32_t complete) {
   }
 }
 
-bool bl_version_to_str(uint32_t version, char* buf, size_t buf_size) {
-  if (buf && buf_size) {
+/**
+ * Returns version string from version number
+ *
+ * Provided buffer should have size at least BL_VERSION_STR_MAX bytes to be able
+ * to receive any possible version string.
+ *
+ * @param version      version number, as stored in header
+ * @param buf          buffer where version null-terminated string will be
+ *                     placed
+ * @param buf_size     size of provided buffer in bytes
+ * @param version_fmt  version format
+ * @return             true if successful
+ */
+static bool version_to_str(uint32_t version, char* buf, size_t buf_size,
+                           version_fmt_t version_fmt) {
+  if (buf && buf_size &&
+      (version_fmt_display == version_fmt ||
+       version_fmt_signature == version_fmt)) {
     if (BL_VERSION_NA == version) {
-      *buf = '\0';
-      return true;
+      if (version_fmt_display == version_fmt) {
+        *buf = '\0';
+        return true;
+      }
+      return false;
     } else if (version <= BL_VERSION_MAX) {
       uint32_t major = version / (100U * 1000U * 1000U);
       uint32_t minor = version / (100U * 1000U) % 1000U;
@@ -83,13 +122,24 @@ bool bl_version_to_str(uint32_t version, char* buf, size_t buf_size) {
         res = snprintf(buf, buf_size, "%u.%u.%u", (unsigned)major,
                        (unsigned)minor, (unsigned)patch);
       } else {
-        res = snprintf(buf, buf_size, "%u.%u.%u-rc%u", (unsigned)major,
-                       (unsigned)minor, (unsigned)patch, (unsigned)rc_rev);
+        res = snprintf(buf, buf_size,
+                       (version_fmt_display == version_fmt) ? "%u.%u.%u-rc%u"
+                                                            : "%u.%u.%urc%u",
+                       (unsigned)major, (unsigned)minor, (unsigned)patch,
+                       (unsigned)rc_rev);
       }
       return (res > 0);
     }
   }
   return false;
+}
+
+bool bl_version_to_str(uint32_t version, char* buf, size_t buf_size) {
+  return version_to_str(version, buf, buf_size, version_fmt_display);
+}
+
+bool bl_version_to_sig_str(uint32_t version, char* buf, size_t buf_size) {
+  return version_to_str(version, buf, buf_size, version_fmt_signature);
 }
 
 /**

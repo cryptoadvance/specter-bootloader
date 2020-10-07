@@ -19,6 +19,12 @@
 #define ECDSA_MESSAGE_SIZE 32U
 /// Digital signature algorithm string: secp256k1-sha256
 #define ALG_SECP256K1_SHA256 "secp256k1-sha256"
+/// "Magic" prefix of Bitcoin message
+#define BITCOIN_SIG_PREFIX \
+  ("\x18"                  \
+   "Bitcoin Signed Message:\n")
+/// Maximum value of a single-byte integer using variable length encoding
+#define VARINT_MAX_ONE_BYTE 0xFCU
 
 /// Table of error strings
 const char* error_text[] = {
@@ -132,11 +138,25 @@ BL_STATIC_NO_TEST bool verify_signature(secp256k1_context* verify_ctx,
                                         const uint8_t* message,
                                         size_t message_len,
                                         const bl_pubkey_t* p_pubkey) {
-  if (verify_ctx && p_sig && message && message_len && p_pubkey &&
+  if (verify_ctx && p_sig && message && message_len &&
+      message_len <= VARINT_MAX_ONE_BYTE && p_pubkey &&
       ECDSA_MESSAGE_SIZE == SHA256_DIGEST_LENGTH) {
-    // Calculate hash of the message
+    // Calculate "inside" SHA-256 of the message with a "magic" prefix
+    uint8_t len_byte[1] = {(uint8_t)message_len};
+    SHA256_CTX context;
+    sha256_Init(&context);
+    sha256_Update(&context, (const uint8_t*)BITCOIN_SIG_PREFIX,
+                  sizeof(BITCOIN_SIG_PREFIX) - 1U);
+    sha256_Update(&context, len_byte, sizeof(len_byte));
+    sha256_Update(&context, message, message_len);
+    uint8_t digest_in[SHA256_DIGEST_LENGTH];
+    sha256_Final(&context, digest_in);
+
+    // Calculate "outside" SHA-256
+    sha256_Init(&context);
+    sha256_Update(&context, digest_in, sizeof(digest_in));
     uint8_t digest[SHA256_DIGEST_LENGTH];
-    sha256_Raw(message, message_len, digest);
+    sha256_Final(&context, digest);
 
     // Parse the public key
     secp256k1_pubkey pubkey_obj;
@@ -189,7 +209,7 @@ BL_STATIC_NO_TEST void destroy_verify_ctx(secp256k1_context* verify_ctx) {
  * @param sig_pl       pointer to contents of Signature section (its payload)
  * @param sig_pl_size  size of the contents of Signature section in bytes
  * @param pubkey_set   NULL-terminated list of pointers to public key lists
- * @param message      message, concatenated hash sentences of Payload sections
+ * @param message      message used to generate signature
  * @param message_len  length of the message in bytes
  * @param progr_arg    argument passed to progress callback function
  * @return             number of verified signatures, or a negative number in

@@ -18,6 +18,8 @@
 extern "C" {
 bool validate_section_name(const char* str, size_t buf_size);
 bool validate_attributes(const uint8_t* attr_list, size_t buf_size);
+bool bytes_to_5bit(uint8_t* dst, size_t* p_dst_size, const uint8_t* src,
+                   size_t src_size);
 }
 
 /// Reference payload
@@ -81,10 +83,9 @@ static const char ref_section_serialized[] =
     "\xd4\x05\xdb\x13\xc8x'="
     "^\xe7Zh|J\xb8N5\xb4\x41\xb2\x87\xc3\x35\x9c\xab\x90(";
 
-/// Hash sentence of the reference section
-static const char ref_section_hash_sentence[] =
-    "boot\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1d\xa7\x17\x06+"
-    "\xdb\xae\xf9\xc3\x8a>\x00\xdc\x9b\x98\x84\x8fn\xbf\x18\xb5{T{"
+/// Hash of the reference section
+static const char ref_section_hash[] =
+    "+\xdb\xae\xf9\xc3\x8a>\x00\xdc\x9b\x98\x84\x8fn\xbf\x18\xb5{T{"
     "\xd3\x39\xe5\xef\x90\x11\xfd\xb7\x10\x15\xa5\x87";
 
 /// File wrapper around payload buffer
@@ -700,27 +701,145 @@ TEST_CASE("Get version string") {
   REQUIRE_FALSE(bl_version_to_str(BL_VERSION_MAX + 1U, buf, sizeof(buf)));
 }
 
-TEST_CASE("Get hash sentence from flash") {
+TEST_CASE("Get version string for signature") {
+  char buf[BL_VERSION_STR_MAX];
+
+  // Valid
+  REQUIRE(bl_version_to_sig_str(102213405U, buf, sizeof(buf)));
+  REQUIRE(streq(buf, "1.22.134rc5"));
+  REQUIRE(bl_version_to_sig_str(1200001599, buf, sizeof(buf)));
+  REQUIRE(streq(buf, "12.0.15"));
+  REQUIRE(bl_version_to_sig_str(1, buf, sizeof(buf)));
+  REQUIRE(streq(buf, "0.0.0rc1"));
+  REQUIRE(bl_version_to_sig_str(4199999999, buf, sizeof(buf)));
+  REQUIRE(streq(buf, "41.999.999"));
+  REQUIRE_FALSE(bl_version_to_sig_str(BL_VERSION_NA, buf, sizeof(buf)));
+
+  // Invalid
+  REQUIRE_FALSE(bl_version_to_sig_str(102213405U, NULL, sizeof(buf)));
+  REQUIRE_FALSE(bl_version_to_sig_str(102213405U, buf, 0U));
+  REQUIRE_FALSE(bl_version_to_sig_str(BL_VERSION_MAX + 1U, buf, sizeof(buf)));
+}
+
+TEST_CASE("Calculate hash over flash") {
   SECTION("valid, reference section") {
-    bl_hash_sentence_t hash;
+    bl_hash_t hash;
     FlashBuf flash(ref_payload, sizeof(ref_payload));
     ProgressMonitor monitor(12345U);
 
-    REQUIRE(blsect_hash_sentence_from_flash(&ref_header, flash_emu_base, &hash,
-                                            12345U));
-    REQUIRE(0 == memcmp(&hash, &ref_section_hash_sentence, sizeof(hash)));
+    REQUIRE(blsect_hash_over_flash(&ref_header, flash_emu_base, &hash, 12345U));
+    REQUIRE(0 == memcmp(&hash.digest, &ref_section_hash, sizeof(hash.digest)));
+    REQUIRE(streq(hash.sect_name, ref_header.name));
+    REQUIRE(ref_header.pl_ver == hash.pl_ver);
     REQUIRE(monitor.is_complete());
   }
 
   SECTION("invalid") {
-    bl_hash_sentence_t hash;
+    bl_hash_t hash;
     FlashBuf flash(ref_payload, sizeof(ref_payload));
-    REQUIRE(blsect_hash_sentence_from_flash(&ref_header, flash_emu_base, &hash,
-                                            0U));
-    REQUIRE(0 == memcmp(&hash, &ref_section_hash_sentence, sizeof(hash)));
+    REQUIRE(blsect_hash_over_flash(&ref_header, flash_emu_base, &hash, 0U));
+    REQUIRE(0 == memcmp(&hash.digest, &ref_section_hash, sizeof(hash.digest)));
     flash[0] ^= 1;
-    REQUIRE(blsect_hash_sentence_from_flash(&ref_header, flash_emu_base, &hash,
-                                            0U));
-    REQUIRE(0 != memcmp(&hash, &ref_section_hash_sentence, sizeof(hash)));
+    REQUIRE(blsect_hash_over_flash(&ref_header, flash_emu_base, &hash, 0U));
+    REQUIRE(0 != memcmp(&hash.digest, &ref_section_hash, sizeof(hash.digest)));
+  }
+}
+
+TEST_CASE("Bytes to 5-bit characters") {
+  SECTION("valid, uneven") {
+    uint8_t data[] = {0xABU, 0xC1U};
+    uint8_t ref_syms[] = {21U, 15U, 0U, 16U};
+    uint8_t syms[sizeof(ref_syms) + 7U];  // (7 has no special meaning)
+    size_t n_syms = sizeof(syms);
+
+    memset(syms, 0xEEU, sizeof(syms));
+    REQUIRE(bytes_to_5bit(syms, &n_syms, data, sizeof(data)));
+    REQUIRE(n_syms == sizeof(ref_syms));
+    REQUIRE(0 == memcmp(syms, ref_syms, n_syms));
+  }
+
+  SECTION("valid, even") {
+    uint8_t data[] = {0x01U, 0x02U, 0x03U, 0x04U, 0x05U};
+    uint8_t ref_syms[] = {0U, 4U, 1U, 0U, 6U, 1U, 0U, 5U};
+    uint8_t syms[sizeof(ref_syms) + 3U];  // (3 has no special meaning)
+    size_t n_syms = sizeof(syms);
+
+    memset(syms, 0xEEU, sizeof(syms));
+    REQUIRE(bytes_to_5bit(syms, &n_syms, data, sizeof(data)));
+    REQUIRE(n_syms == sizeof(ref_syms));
+    REQUIRE(0 == memcmp(syms, ref_syms, n_syms));
+  }
+
+  SECTION("invalid") {
+    uint8_t data[] = {0xABU, 0xC1U};
+    uint8_t ref_syms[] = {21U, 15U, 0U, 16U};
+    uint8_t syms[sizeof(ref_syms) + 7U];  // (7 has no special meaning)
+    size_t n_syms = sizeof(syms);
+
+    REQUIRE(bytes_to_5bit(syms, &n_syms, data, sizeof(data)));
+    REQUIRE_FALSE(bytes_to_5bit(NULL, &n_syms, data, sizeof(data)));
+    REQUIRE_FALSE(bytes_to_5bit(syms, NULL, data, sizeof(data)));
+    REQUIRE_FALSE(bytes_to_5bit(syms, &n_syms, NULL, sizeof(data)));
+    REQUIRE_FALSE(bytes_to_5bit(syms, &n_syms, data, 0));
+    n_syms = sizeof(ref_syms);  // Set minimum size of destination buffer
+    REQUIRE(bytes_to_5bit(syms, &n_syms, data, sizeof(data)));
+    n_syms = sizeof(ref_syms) - 1U;  // One byte less than needed
+    REQUIRE_FALSE(bytes_to_5bit(syms, &n_syms, data, sizeof(data)));
+  }
+}
+
+TEST_CASE("Make signature message") {
+  const size_t hash_items = 2U;
+  const bl_hash_t hashes[hash_items] = {
+      {.digest = {0xE5U, 0x36U, 0x44U, 0xC4U, 0xE0U, 0xAAU, 0x0FU, 0xB1U,
+                  0xDDU, 0x09U, 0xB3U, 0x83U, 0xE3U, 0xF9U, 0xF8U, 0xCAU,
+                  0x43U, 0x35U, 0x85U, 0xB6U, 0x18U, 0x45U, 0x2EU, 0x7EU,
+                  0xD4U, 0xA0U, 0x1DU, 0x6DU, 0x0DU, 0x26U, 0x7CU, 0x16U},
+       .sect_name = "boot",
+       .pl_ver = 102213405},
+      {.digest = {0xFFU, 0xDEU, 0xF2U, 0xCEU, 0x0DU, 0x94U, 0xC3U, 0x7BU,
+                  0x17U, 0x62U, 0x46U, 0x97U, 0x87U, 0xE0U, 0x22U, 0x8CU,
+                  0x3FU, 0x7DU, 0xD9U, 0x2EU, 0x30U, 0xB5U, 0xBCU, 0xC9U,
+                  0xF3U, 0xC8U, 0x24U, 0x37U, 0x29U, 0x6CU, 0x29U, 0x85U},
+       .sect_name = "main",
+       .pl_ver = 200000199}};
+  const uint8_t ref_msg[] =
+      "b1.22.134rc5-2.0.1-"
+      "1xcak8quhfh0uauaxdlp6k6sx96jys8ua4s3q8htdx06xzy2k4a6qamphtk";
+  const size_t ref_msg_size = sizeof(ref_msg) - 1U;  // Exclude terminating '\0'
+
+  SECTION("valid") {
+    uint8_t msg[BL_SIG_MSG_MAX];
+    size_t msg_size = sizeof(msg);
+    REQUIRE(blsect_make_signature_message(msg, &msg_size, hashes, hash_items));
+    REQUIRE(msg_size == sizeof(ref_msg) - 1U);
+    REQUIRE(0 == memcmp(msg, ref_msg, msg_size));
+  }
+
+  SECTION("corrupted hash") {
+    bl_hash_t hashes_copy[hash_items];
+    uint8_t msg[BL_SIG_MSG_MAX];
+    size_t msg_size = sizeof(msg);
+
+    // Corrupt 1-st hash record
+    memcpy(hashes_copy, hashes, sizeof(hashes_copy));
+    hashes_copy[0].digest[0] ^= 1U;
+    REQUIRE(
+        blsect_make_signature_message(msg, &msg_size, hashes_copy, hash_items));
+    REQUIRE(msg_size == sizeof(ref_msg) - 1U);
+    REQUIRE_FALSE(0 == memcmp(msg, ref_msg, msg_size));
+  }
+
+  SECTION("invalid args") {
+    uint8_t m[BL_SIG_MSG_MAX];
+    size_t sz = sizeof(m);
+    REQUIRE_FALSE(blsect_make_signature_message(NULL, &sz, hashes, hash_items));
+    REQUIRE_FALSE(blsect_make_signature_message(m, NULL, hashes, hash_items));
+    sz = sizeof(m);
+    REQUIRE_FALSE(blsect_make_signature_message(m, &sz, NULL, hash_items));
+    sz = sizeof(m);
+    REQUIRE_FALSE(blsect_make_signature_message(m, &sz, hashes, 0U));
+    sz = sizeof(ref_msg) - 1U;
+    REQUIRE_FALSE(blsect_make_signature_message(m, &sz, hashes, hash_items));
   }
 }

@@ -153,6 +153,54 @@ def dump(upgrade_file):
             print("  signatures:\n    " + "\n    ".join(sigs))
 
 
+@ cli.command(
+    'message',
+    short_help='outputs a hash message to be signed externally'
+)
+@ click.argument(
+    'upgrade_file',
+    required=True,
+    type=click.File('rb'),
+    metavar='<upgrade_file.bin>'
+)
+def message(upgrade_file):
+    """ This command outputs a message in Bech32 format containing payload
+    version(s) and hash to be signed using external tools.
+    """
+
+    sections = load_sections(upgrade_file)
+    pl_sections = [s for s in sections if isinstance(s, PayloadSection)]
+    message = make_signature_message(pl_sections)
+    print(message.decode('ascii'))
+
+
+@ cli.command(
+    'import-sig',
+    short_help='imports a signature into upgrade file'
+)
+@ click.option(
+    '-s', '--signature',
+    required=True,
+    help='Bitcoin message signature in Base64 format.',
+    metavar='<signature_base64>'
+)
+@ click.argument(
+    'upgrade_file',
+    required=True,
+    type=click.File('rb'),
+    metavar='<upgrade_file.bin>'
+)
+def import_sig(upgrade_file, signature):
+    """ This command imports an externally made signature into an upgrade file.
+    The signature is expected to be a standard Bitcoin message signature in
+    Base64 format.
+    """
+
+    sections = load_sections(upgrade_file)
+    print("Signature: ", signature)
+    raise NotImplementedError
+
+
 def create_payload_section(hex_file, section_name, platform):
     ih = IntelHex(hex_file)
     attr = {'bl_attr_base_addr': ih.minaddr()}

@@ -37,6 +37,10 @@ C_SOURCES += $(shell find $(LIB_DIR)/crypto -name *.c)
 C_SOURCES += $(addprefix $(LIB_DIR)/secp256k1/src/,\
 	secp256k1.c \
 	)
+# Bech32
+C_SOURCES += $(addprefix $(LIB_DIR)/bech32/,\
+	segwit_addr.c \
+	)
 
 # C includes
 C_INCLUDES =  \
@@ -48,7 +52,8 @@ C_INCLUDES =  \
 -I$(LIB_DIR)/crc32 \
 -I$(LIB_DIR)/crypto \
 -I$(LIB_DIR)/secp256k1 \
--I$(LIB_DIR)/secp256k1/src
+-I$(LIB_DIR)/secp256k1/src \
+-I$(LIB_DIR)/bech32
 
 # C defines
 C_DEFS =  \

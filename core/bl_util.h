@@ -111,6 +111,20 @@ static inline bool bl_streq(const char* stra, const char* strb) {
 }
 
 /**
+ * Appends characters from one string to another with bounds checking
+ *
+ * This operation is guaranteed to be atomic: if the function fails,
+ * the destination string remains unchanged and no extra data is written to the
+ * destination buffer.
+ *
+ * @param dst       destination buffer containing 1-st null-terminated string
+ * @param dst_size  size of destination buffer in bytes
+ * @param src       buffer containing 2-nd null-terminated string
+ * @return          true if successful
+ */
+bool bl_strcat_checked(char *dst, size_t dst_size, const char *src);
+
+/**
  * Sets callback function which is called to report progress of operations
  *
  * @param cb_progress  pointer to callback function, NULL to disable
@@ -147,6 +161,19 @@ uint32_t bl_percent_x100(uint32_t total, uint32_t complete);
  * @return          true if successful
  */
 bool bl_version_to_str(uint32_t version, char* buf, size_t buf_size);
+
+/**
+ * Returns version string from version number formated for signature message
+ *
+ * Provided buffer should have size at least BL_VERSION_STR_MAX bytes to be able
+ * to receive any possible version string.
+ *
+ * @param version   version number, as stored in header
+ * @param buf       buffer where version null-terminated string will be placed
+ * @param buf_size  size of provided buffer in bytes
+ * @return          true if successful
+ */
+bool bl_version_to_sig_str(uint32_t version, char* buf, size_t buf_size);
 
 /**
  * Decodes XML version tag

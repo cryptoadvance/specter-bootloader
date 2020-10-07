@@ -35,7 +35,7 @@ def _validate_pubkey(pubkey):
 
 def _validate_message(message):
     if not isinstance(message, _byteslike):
-        raise TypeError("Private key should be bytes-like")
+        raise TypeError("Message key should be bytes-like")
     if not len(message):
         raise ValueError("Message should not be empty")
 
@@ -89,19 +89,25 @@ def pubkey_fingerprint_from_seckey(seckey):
     key."""
     return pubkey_fingerprint(pubkey_from_seckey(seckey))
 
+def _message_magic(message):
+    """Adds "magic" prefix and length field to a signed message"""
+    _validate_message(message)
+    if len(message) >= 0xfd:
+        raise ValueError("Message length is not supported")
+    return b"\x18Bitcoin Signed Message:\n" + bytes([len(message)]) + message
+
 def sign(message, seckey):
     """Signs a message with given private key."""
     _validate_seckey(seckey)
-    _validate_message(message)
-    sig_obj = secp256k1.ecdsa_sign(_sha256(message), _to_bytes(seckey))
+    msg_hash = _sha256(_sha256(_message_magic(message)))
+    sig_obj = secp256k1.ecdsa_sign(msg_hash, _to_bytes(seckey))
     return secp256k1.ecdsa_signature_serialize_compact(sig_obj)
 
 def verify(signature, message, pubkey):
     """Verifies signature of a message with given public key."""
     _validate_signature(signature)
-    _validate_message(message)
     _validate_pubkey(pubkey)
+    msg_hash = _sha256(_sha256(_message_magic(message)))
     pubkey_obj = secp256k1.ec_pubkey_parse(_to_bytes(pubkey))
     sig_obj = secp256k1.ecdsa_signature_parse_compact(_to_bytes(signature))
-    hashcode = _sha256(message)
-    return secp256k1.ecdsa_verify(sig_obj, hashcode, pubkey_obj)
+    return secp256k1.ecdsa_verify(sig_obj, msg_hash, pubkey_obj)
