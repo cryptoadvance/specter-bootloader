@@ -153,26 +153,66 @@ Attribute array must contain at least one required attribute, `bl_attr_algorithm
 The contents of the signature section is a list of fingerprint-signature pairs. When "secp256k1-sha256" is specified, the fingerprint is 16 first bytes of SHA-256 hash of the uncompressed public key (65 bytes, beginning with 0x04), and the signature is a 64-byte compact signature:
 
 ```text
-  0x00000000  [16]: SHA-256(pubkey1), [64]: signature1
-  0x00000050  [16]: SHA-256(pubkey2), [64]: signature2
-  0x000000A0  [16]: SHA-256(pubkey3), [64]: signature3
-  0x000000F0  [16]: SHA-256(pubkey4), [64]: signature4
-    ...
-  (N-1) * 80  [16]: SHA-256(pubkeyN), [64]: signatureN
+0x00000000  [16]: SHA-256(pubkey1), [64]: signature1
+0x00000050  [16]: SHA-256(pubkey2), [64]: signature2
+0x000000A0  [16]: SHA-256(pubkey3), [64]: signature3
+0x000000F0  [16]: SHA-256(pubkey4), [64]: signature4
+  ...
+(N-1) * 80  [16]: SHA-256(pubkeyN), [64]: signatureN
 ```
 
-Calculation of digital signature is a multi-step process:
+Calculation of digital signature is a multi-step process using `secp256k1-sha256` algorithm:
 
 1. A separate SHA-256 hash is calculated over each payload section including its header: \
   **_h<sub>i</sub>_ = SHA-256( _header<sub>i</sub>_ | _payload<sub>i</sub>_ )**
-2. Each produced value is concatenated with corresponding section name as 16 byte array and 32-bit version number in little-endian format, forming a 52-byte payload sentence: \
-  **_P<sub>i</sub>_ = _name<sub>i</sub>_ | _version<sub>i</sub>_ | _h<sub>i</sub>_**
-3. A message to sign is produced by concatenating all payload sentences: \
-  **_M_ = _P<sub>0</sub>_ | … | _P<sub>i</sub>_**
-4. Message is signed with a private key d using chosen digital signature algorithm: \
-  **_signature<sub>i</sub>_ = DSA_SIGN( _d_, _M_ )**
+2. Resulting hash values are concatenated together, hashed again and mapped to 5-bit symbols to produce the data part for a Bech32 message: \
+  **_data_ = MAP_5BIT( SHA-256( _h<sub>0</sub>_ | ... | _h<sub>i</sub>_ ) )**
+3. A human readable part for a Bech32 message is produced by concatenating brief section name and a textual representation of version of each payload section. Information realted to each payload section is terminated by dash '-' symbol for a better visual separation. \
+  **_hrp_ = BRIEF( _name<sub>0</sub>_ ) | _version<sub>0</sub>_ | '-' | ... | BRIEF( _name<sub>i</sub>_ ) | _version<sub>i</sub>_ | '-'**
+4. The message to sign is produced from **_data_** and **_hrp_** components according to Bech32 standard: \
+  **_M_ = Bech32( _hrp_, _data_ )**
+5. The message is signed according to widely used Bitcoin message signing protocol with a private key d: \
+  **_m_ = 0x18 | "Bitcoin Signed Message:\n" | COMPACT_ENCODE( LEN( _M_ ) ) | _M_** \
+  **_mh_ = SHA-256( SHA-256( _m_ ) )** \
+  **_signature<sub>i</sub>_ = SECP256K1_SIGN( _d_, _mh_ )**
 
-The process is divided in four steps to allow delegation of steps 3-4 to an air-gapped device, like Specter itself. In this scenario only a list of hashes with brief metadata **[_P<sub>0</sub>_, …, _P<sub>n</sub>_]**, is transferred instead of full payload sections and headers. Name and version fields provide additional information for visual confirmation on the screen.
+A data part for a Bech32 message, **_data_**, is an array of 5-bit values according to Bech32 standard. Output of **SHA-256** hash function is mapped MSB-first to 52 5-bit values. MSB of the first byte of hash function's output is placed in the MSB of the first 5-bit value. LSB of the last byte is placed in the MSB of the last 5-bit value. Remaining 4 least significant bist of the last 5-bit value are initialized with zeroes.
+
+Example:
+
+```text
+sha256_output[32] = { 0xAB, 0xC1, 0x00, ... , 0xFF }
+data[52] = { 0x15, 0x0F, 0x00, 0x10, ... , 0x1F, 0x10 }
+```
+
+A human readable part for a Bech32 message, **_hrp_**, is produced by concatenating brief section name and a textual representation of version of each payload section. Information realted to each payload section is terminated by dash '-' symbol for a better visual separation. Version is represented as text with no leading zeroes and no dash before "rc" suffix. Brief section name is "b" for the "boot" section and "" (empty string) for the "main" section. Other sections (if any) are not included in generation of human readable part. For additional information please see [Version format](#version-format).
+
+Example 1:
+
+```text
+sections = {
+  { .name = "boot", .version = 102213405 },
+  { .name = "main", .version = 200000199 }
+}
+hrp = "b1.22.134rc5-2.0.1-"
+```
+
+Example 2:
+
+```text
+sections = {
+  { .name = "main", .version = 1 }
+}
+hrp = "0.0.0rc1-"
+```
+
+The Bech32 message as an intermediate product allows delegation of the step 5 to an air-gapped device, like Specter itself. In this scenario only a Bech32 message is transferred instead of full payload sections and headers. Name and version fields inside human readable part provide additional information for visual confirmation on the screen.
+
+Example of a Bech32 message transferred to an external device for signing:
+
+```text
+b1.22.134rc5-2.0.1-1xcak8quhfh0uauaxdlp6k6sx96jys8ua4s3q8htdx06xzy2k4a6qamphtk
+```
 
 Additional signatures can be added later by re-writing the signature section of an upgrade file. All signatures must be produced using the same algorithm.
 
@@ -187,7 +227,7 @@ Entry point for the firmware modules intended for ARM Cortex-M4 platform is stor
 In the source firmware files payload version is defined with an embedded XML-like version tag: **&lt;version:tag10>** followed by exactly 10 decimal digits specifying semantic version as defined in "Version Format" subsection. For example, version "1.22.134-rc5" is defined by:
 
 ```xml
-<version:tag10>102213405</version:tag10>
+<version:tag10>0102213405</version:tag10>
 ```
 
 This tag could be included anywhere within the firmware body. Upgrade generator searches the firmware image for an embedded version tag after conversion from Intel HEX format to linear binary image. If the version tag is not found, the firmware version is considered "undefined". If the firmware includes more than one version tag (of the same format), the firmware is considered invalid.
