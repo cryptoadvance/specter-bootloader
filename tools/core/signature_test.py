@@ -94,6 +94,7 @@ def test_pubkey_fingerprint_from_seckey():
     assert fp == ref_pubkey_fingerprint
     assert pubkey_fingerprint_from_seckey(wrong_seckey) != fp
 
+
 def test_sign_verify():
     signature = sign(ref_message, ref_seckey)
     assert isinstance(signature, bytes)
@@ -102,3 +103,14 @@ def test_sign_verify():
     assert not verify(signature, ref_message, wrong_pubkey)
     wrong_signature = sign(ref_message, wrong_seckey)
     assert not verify(wrong_signature, ref_message, ref_pubkey)
+
+
+def test_parse_recoverable_sig():
+    msg = b"Hello world"
+    pubkey = secp256k1.ec_pubkey_serialize(
+        secp256k1.ec_pubkey_create(b"1"*32), secp256k1.EC_UNCOMPRESSED)
+    b64_sig = ("IKe84tb3CO7KPw7laQsh6Bjk0qNp5s1lId/iLcRBWmE1Nn8t6drArd1oiEkuPu"
+               "shNuDqQs8WB0kqxZ+MDmXBruQ=")
+    dec_sig, dec_pubkey = parse_recoverable_sig(b64_sig, msg)
+    assert dec_pubkey == pubkey
+    assert verify(dec_sig, msg, pubkey)

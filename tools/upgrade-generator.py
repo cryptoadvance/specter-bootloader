@@ -63,7 +63,6 @@ def generate(upgrade_file, bootloader_hex, firmware_hex, platform, key_pem):
     upgrade file. Private key should be in PEM container with or without
     encryption.
     """
-
     # Load private key if needed
     seckey = None
     if key_pem:
@@ -112,7 +111,6 @@ def sign(upgrade_file, key_pem):
     The signature is checked for duplication, and any duplicating signatures
     are removed automatically.
     """
-
     # Load sections from firmware file
     sections = load_sections(upgrade_file)
 
@@ -140,7 +138,6 @@ def dump(upgrade_file):
     """ This command dumps information regarding firmware sections and lists
     signatures with public key fingerprints.
     """
-
     sections = load_sections(upgrade_file)
     for s in sections:
         version_str = s.version_str
@@ -167,7 +164,6 @@ def message(upgrade_file):
     """ This command outputs a message in Bech32 format containing payload
     version(s) and hash to be signed using external tools.
     """
-
     sections = load_sections(upgrade_file)
     pl_sections = [s for s in sections if isinstance(s, PayloadSection)]
     message = make_signature_message(pl_sections)
@@ -179,7 +175,7 @@ def message(upgrade_file):
     short_help='imports a signature into upgrade file'
 )
 @ click.option(
-    '-s', '--signature',
+    '-s', '--signature', 'b64_signature',
     required=True,
     help='Bitcoin message signature in Base64 format.',
     metavar='<signature_base64>'
@@ -187,18 +183,24 @@ def message(upgrade_file):
 @ click.argument(
     'upgrade_file',
     required=True,
-    type=click.File('rb'),
+    type=click.File('rb+'),
     metavar='<upgrade_file.bin>'
 )
-def import_sig(upgrade_file, signature):
+def import_sig(upgrade_file, b64_signature):
     """ This command imports an externally made signature into an upgrade file.
     The signature is expected to be a standard Bitcoin message signature in
     Base64 format.
     """
-
     sections = load_sections(upgrade_file)
-    print("Signature: ", signature)
-    raise NotImplementedError
+    pl_sections, _ = parse_sections(sections)
+    sig_message = make_signature_message(pl_sections)
+    signature, pubkey = parse_recoverable_sig(b64_signature, sig_message)
+    add_signature(sections, signature, pubkey)
+
+    # Write new upgrade file to disk
+    upgrade_file.truncate(0)
+    upgrade_file.seek(0)
+    write_sections(upgrade_file, sections)
 
 
 def create_payload_section(hex_file, section_name, platform):
@@ -245,8 +247,9 @@ def load_sections(upgrade_file):
     return sections
 
 
-def do_sign(sections, seckey):
-    # Check sections
+def parse_sections(sections):
+    """Validates an upgrade file and separates Payload and Signature sections.
+    """
     if not len(sections):
         raise click.ClickException("Upgrade file is empty")
     if not isinstance(sections[-1], SignatureSection):
@@ -257,14 +260,31 @@ def do_sign(sections, seckey):
         if not isinstance(sect, PayloadSection):
             err = "Unexpected section within payload sections"
             raise click.ClickException(err)
+    if not isinstance(sig_section, SignatureSection):
+        err = "Last section must be the Signature Section"
+        raise click.ClickException(err)
+    return (pl_sections, sig_section)
 
-    # Sign payload sections and store signature in signature section
-    msg = make_signature_message(pl_sections)
-    fp = pubkey_fingerprint_from_seckey(seckey)
+
+def add_signature(sections, signature, pubkey):
+    """Adds a new signature to Signature section.
+    """
+    _, sig_section = parse_sections(sections)
+    fp = pubkey_fingerprint(pubkey)
     if fp in sig_section.signatures:
         err = "Upgrade file is already signed using this key"
         raise click.ClickException(err)
-    sig_section.signatures[fp] = sig.sign(msg, seckey)
+    sig_section.signatures[fp] = signature
+
+
+def do_sign(sections, seckey):
+    """Signs payload sections.
+    """
+    pl_sections, _ = parse_sections(sections)
+    msg = make_signature_message(pl_sections)
+    pubkey = pubkey_from_seckey(seckey)
+    signature = sig.sign(msg, seckey)
+    add_signature(sections, signature, pubkey)
 
 
 if __name__ == '__main__':
