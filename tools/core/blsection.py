@@ -8,6 +8,8 @@ import zlib
 import sys
 from .signature import *
 from .signature import _sha256
+from bech32.segwit_addr import bech32_encode
+from bitstring import ConstBitStream
 
 # Types representing sequence of bytes, for type checking
 _byteslike = (bytes, bytearray)
@@ -15,7 +17,7 @@ _byteslike = (bytes, bytearray)
 _arraylike = (frozenset, list, set, tuple,)
 
 # Section magic word
-BL_SECT_MAGIC = 0x54434553 # "SECT" in LE
+BL_SECT_MAGIC = 0x54434553  # "SECT" in LE
 # Structure revision
 STRUCT_REV = 1
 # Maximum size of string attribute including null character
@@ -42,23 +44,31 @@ VERSION_DIGITS = 10
 
 # Mapping between attribute name and its (code, type, format)
 _attributes = {
-    'bl_attr_algorithm'   : ( 1, str, "'{}'"   ),
-    'bl_attr_base_addr'   : ( 2, int, "0x{:x}" ),
-    'bl_attr_entry_point' : ( 3, int, "0x{:x}" ),
-    'bl_attr_platform'    : ( 4, str, "'{}'"   ),
+    'bl_attr_algorithm': (1, str, "'{}'"),
+    'bl_attr_base_addr': (2, int, "0x{:x}"),
+    'bl_attr_entry_point': (3, int, "0x{:x}"),
+    'bl_attr_platform': (4, str, "'{}'"),
 }
 # Reverse lookup by attribute code
 _attribute_names = {v[0]: k for k, v in _attributes.items()}
 
-# Registers additional attributes for testing
+# Brief names of payload sections used to generate signature message
+_brief_section_name = {
+    'boot': 'b',
+    'main': ''
+}
+
+
 @pytest.fixture()
 def _add_test_attributes():
+    """Registers additional attributes for testing"""
     global _attributes, _attribute_names
-    _attributes = { **_attributes,
-                    'a2': ( 0xa2, None, "{}"   ),
-                    'a3': ( 0xa3, int,  "{}"   ),
-                    'a4': ( 0xa4, str,  "'{}'" ) }
-    _attribute_names = {v[0]: k for k, v in _attributes.items() }
+    _attributes = {**_attributes,
+                   'a2': (0xa2, None, "{}"),
+                   'a3': (0xa3, int,  "{}"),
+                   'a4': (0xa4, str,  "'{}'")}
+    _attribute_names = {v[0]: k for k, v in _attributes.items()}
+
 
 def _validate_array(values, class_=None, accept_empty=False):
     if not isinstance(values, _arraylike):
@@ -70,6 +80,15 @@ def _validate_array(values, class_=None, accept_empty=False):
             if not isinstance(value, class_):
                 raise TypeError(f"Values should be instances of {class_}")
 
+
+def _bytes_to_5bit(data):
+    """Converts binary data into a list of 5-bit values
+    """
+
+    bs = ConstBitStream(bytes(data) + b'\x00')
+    return [bs.read('uint:5') for i in range((len(data) * 8 + 4) // 5)]
+
+
 def is_version_valid(version_num, allow_na=True):
     """Checks if version is valid"""
     if allow_na and version_num == VERSION_NA:
@@ -78,20 +97,32 @@ def is_version_valid(version_num, allow_na=True):
         return True
     return False
 
-def version_to_str(version_num):
+
+def version_to_str(version_num, format='display'):
     """Converts version number to string"""
+
     if not is_version_valid(version_num):
         raise ValueError("Version number is out of range")
+
     if version_num == VERSION_NA:
+        if format == 'signature':
+            raise ValueError("Version is invalid")
         return ""
-    major  = version_num // (100 * 1000 * 1000)
-    minor  = version_num // (100 * 1000) % 1000
-    patch  = version_num // 100 % 1000
+
+    major = version_num // (100 * 1000 * 1000)
+    minor = version_num // (100 * 1000) % 1000
+    patch = version_num // 100 % 1000
     rc_rev = version_num % 100
     ver_str = f"{major}.{minor}.{patch}"
     if rc_rev != 99:
-        ver_str += f"-rc{rc_rev}"
+        if format == 'display':
+            ver_str += f"-rc{rc_rev}"
+        elif format == 'signature':
+            ver_str += f"rc{rc_rev}"
+        else:
+            raise ValueError("Incorrect version format")
     return ver_str
+
 
 def find_payload_version(firmware):
     if not isinstance(firmware, _byteslike):
@@ -111,13 +142,13 @@ def find_payload_version(firmware):
     idx += len(VERSION_TAG)
     if len(firmware) < idx + VERSION_DIGITS + len(VERSION_TAG_CLOSE):
         raise ValueError("Corrupted varsion tag in payload")
-    version_num = int(firmware[idx : (idx + VERSION_DIGITS)])
+    version_num = int(firmware[idx: (idx + VERSION_DIGITS)])
     if not is_version_valid(version_num, allow_na=False):
         raise ValueError("Version number is out of range")
 
     # Check that closing tag is present
     idx += VERSION_DIGITS
-    closing_tag = firmware[idx : (idx + len(VERSION_TAG_CLOSE))]
+    closing_tag = firmware[idx: (idx + len(VERSION_TAG_CLOSE))]
     if closing_tag != VERSION_TAG_CLOSE:
         raise ValueError("Corrupted varsion tag in payload")
 
@@ -139,6 +170,8 @@ def find_payload_version(firmware):
 #   uint8_t attr_list[216]; ///< Attributes, list of: { key, size [, value] }
 #   uint32_t struct_crc;    ///< CRC of this structure using LE representation
 # } bl_section_t;
+
+
 class _bl_section_t(LittleEndianStructure):
     _pack_ = 1        # Pack structure
     _CRC_SIZE = 4     # CRC32 size in bytes
@@ -154,10 +187,10 @@ class _bl_section_t(LittleEndianStructure):
                 ('attr_list',  c_uint8 * 216),
                 ('struct_crc', c_uint32)]
 
-    def __init__(self, name = ""):
-        super(_bl_section_t, self).__init__(magic = BL_SECT_MAGIC,
-                                           struct_rev = STRUCT_REV,
-                                           pl_ver = VERSION_NA)
+    def __init__(self, name=""):
+        super(_bl_section_t, self).__init__(magic=BL_SECT_MAGIC,
+                                            struct_rev=STRUCT_REV,
+                                            pl_ver=VERSION_NA)
         self.set_name(name)
 
     def __eq__(self, other):
@@ -218,7 +251,7 @@ class _bl_section_t(LittleEndianStructure):
                 key = _attribute_names[key_byte]
                 _, attr_type, _ = _attributes[key]
             except KeyError:
-                continue # Unknown attribute, skip it
+                continue  # Unknown attribute, skip it
 
             # Handle attribute according to its type
             if attr_type is None or not len_byte:
@@ -264,8 +297,8 @@ class _bl_section_t(LittleEndianStructure):
     def serialize_name(self):
         return self.name + bytes(self._NAME_SIZE - len(self.name))
 
-    def get_pl_ver_str(self):
-        return version_to_str(self.pl_ver)
+    def get_pl_ver_str(self, format='display'):
+        return version_to_str(self.pl_ver, format)
 
     def serialize_pl_ver(self):
         return self.pl_ver.to_bytes(self._PL_VER_SIZE, byteorder='little')
@@ -282,7 +315,7 @@ class _bl_section_t(LittleEndianStructure):
         if not self.check_crc():
             raise ValueError("Incorrect section CRC")
         try:
-            if len(self.get_name()) >  self._NAME_SIZE - 1:
+            if len(self.get_name()) > self._NAME_SIZE - 1:
                 raise ValueError()
         except:
             raise ValueError("Incorrect section name")
@@ -310,7 +343,7 @@ class _bl_signature_rec_t(LittleEndianStructure):
     def pair(self, value):
         fp, sig = value
         self.fingerprint = (c_uint8 * 16)(*fp)
-        self.signature   = (c_uint8 * 64)(*sig)
+        self.signature = (c_uint8 * 64)(*sig)
 
 
 class Section(ABC):
@@ -355,6 +388,10 @@ class Section(ABC):
     def version_str(self):
         return self._header.get_pl_ver_str()
 
+    @property
+    def version_sig_str(self):
+        return self._header.get_pl_ver_str(format='signature')
+
     @abstractmethod
     def _serialize_payload(self):
         pass
@@ -384,7 +421,7 @@ class Section(ABC):
         # Deserialize and check the payload
         if len(source) - offset < header.pl_size:
             raise ValueError("Buffer doesn't have enough bytes for payload")
-        payload = source[offset : offset + header.pl_size]
+        payload = source[offset: offset + header.pl_size]
         offset += header.pl_size
         if len(payload) != header.pl_size:
             raise ValueError("Payload has wrong size")
@@ -392,17 +429,11 @@ class Section(ABC):
             raise ValueError("Incorrect payload CRC")
 
         # Identify section type by name and crete a new object
-        classes = { b'sign' : SignatureSection }
+        classes = {b'sign': SignatureSection}
         cls = classes.get(header.name, PayloadSection)
         sect = cls(header=header, payload=payload)
         return (sect, offset)
 
-    def get_hash_sentence(self):
-        """Returns hash sentence containing section's name, version and hash"""
-        hashcode = _sha256(self.serialize())
-        name_bytes = self._header.serialize_name()
-        version_bytes = self._header.serialize_pl_ver()
-        return name_bytes + version_bytes + hashcode
 
 class PayloadSection(Section):
     """Payload section storing firmware"""
@@ -433,8 +464,8 @@ class PayloadSection(Section):
         """Return True if self==other (same header and payload)"""
         if not isinstance(other, PayloadSection):
             return False if isinstance(other, Section) else NotImplemented
-        return ( self._header == other._header and
-                 self.__payload == other.__payload )
+        return (self._header == other._header and
+                self.__payload == other.__payload)
 
     def _find_payload_version(self):
         return find_payload_version(self.__payload)
@@ -451,7 +482,7 @@ class SignatureSection(Section):
         """Constructs a new SignatureSection"""
         name = None if header else 'sign'
         super().__init__(name=name, header=header)
-        self.__signatures = { } # Public dict { fingerprint : signature }
+        self.__signatures = {}  # Public dict { fingerprint : signature }
         if header is None:
             self._init_new(dsa_algorithm)
         else:
@@ -460,7 +491,7 @@ class SignatureSection(Section):
     def _init_new(self, dsa_algorithm):
         if not dsa_algorithm in _supported_algorithms:
             raise ValueError("Digital signature algorithm not supported")
-        self._header.set_attributes({ 'bl_attr_algorithm' : dsa_algorithm })
+        self._header.set_attributes({'bl_attr_algorithm': dsa_algorithm})
 
     def _init_from_header(self, payload):
         # Check if header contains supported algorithm
@@ -493,8 +524,8 @@ class SignatureSection(Section):
     def __eq__(self, other):
         if not isinstance(other, SignatureSection):
             return False if isinstance(other, Section) else NotImplemented
-        return ( self._header == other._header and
-                 self.__signatures == other.__signatures )
+        return (self._header == other._header and
+                self.__signatures == other.__signatures)
 
     @staticmethod
     def _validate_fingerprint(fingerprint):
@@ -524,23 +555,28 @@ class SignatureSection(Section):
         payload_bytes = b''
         self._validate_signatures(self.__signatures)
         for fp, sig in self.__signatures.items():
-            #rec = _bl_signature_rec_t(fingerprint=fp, signature=sig)
             rec = _bl_signature_rec_t()
             rec.pair = (fp, sig)
             payload_bytes += bytes(rec)
         return payload_bytes
 
-    def get_hash_sentence(self):
-        """"Rises NotImplementedError (signature sections should not be signed
-        themselves)."""
-        raise NotImplementedError()
 
 def make_signature_message(sections):
     """Creates a bytes message with names, versions and hashes of all payload
     sections. Used as input to signature algorithm.
     """
+
     _validate_array(sections, class_=PayloadSection)
-    message = b''
+
+    hrp = ""
+    hash_input = b''
     for sect in sections:
-        message += sect.get_hash_sentence()
-    return message
+        try:
+            hrp += _brief_section_name[sect.name] + sect.version_sig_str + "-"
+        except KeyError:
+            raise ValueError("Unsupported payload section")
+        hash_input += _sha256(sect.serialize())
+
+    data = _bytes_to_5bit(_sha256(hash_input))
+
+    return bech32_encode(hrp, data).encode('ascii')

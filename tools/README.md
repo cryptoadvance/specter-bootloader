@@ -6,6 +6,8 @@
   - [Upgrade file generator](#upgrade-file-generator)
     - [**gen** command](#gen-command)
     - [**sign** command](#sign-command)
+    - [**message** command](#message-command)
+    - [**import-sig** command](#import-sig-command)
     - [**dump** command](#dump-command)
   - [Creation of initial firmware](#creation-of-initial-firmware)
 
@@ -66,6 +68,8 @@ Upgrade generator supports three commands:
 
 - [**gen**](#gen-command) - generate an upgrade file, with optional signing
 - [**sign**](#sign-command) - add a signature to an existing upgrade file
+- [**message**](#message-command) - output a Bech32 message to sign externally
+- [**import-sig**](#import-sig-command) - import an externally made signature
 - [**dump**](#dump-command) - displays contents of an upgrade file
 
 To get full usage instructions run `upgrade-generator.py <command> --help`.
@@ -108,6 +112,37 @@ Options:
   -k, --private-key <filename.pem>
                                   Private key in PEM container used to sign
                                   produced upgrade file.  [required]
+
+  --help                          Show this message and exit.
+```
+
+### **message** command
+
+```console
+$ upgrade-generator.py message --help
+Usage: upgrade-generator.py message [OPTIONS] <upgrade_file.bin>
+
+  This command outputs a message in Bech32 format containing payload
+  version(s) and hash to be signed using external tools.
+
+Options:
+  --help  Show this message and exit.
+```
+
+### **import-sig** command
+
+```console
+$ upgrade-generator.py import-sig --help
+Usage: upgrade-generator.py import-sig [OPTIONS] <upgrade_file.bin>
+
+  This command imports an externally made signature into an upgrade file.
+  The signature is expected to be a standard Bitcoin message signature in
+  Base64 format.
+
+Options:
+  -s, --signature <signature_base64>
+                                  Bitcoin message signature in Base64 format.
+                                  [required]
 
   --help                          Show this message and exit.
 ```

@@ -16,6 +16,7 @@
 #include "sha2.h"
 #include "bl_section.h"
 #include "bl_util.h"
+#include "segwit_addr.h"
 
 /// Name used to identify signature section
 #define BL_SIGNATURE_SECT_NAME "sign"
@@ -26,6 +27,9 @@
 /// Size of statically allocated shared IO buffer
 #define IO_BUF_SIZE 4096U
 #endif
+
+/// Maximum size of human readable part of signature message (including '\0')
+#define SIG_MSG_HRP_MAX (sizeof("b77.777.777rc77-77.777.777rc77-"))
 
 /// Statically allocated contex
 static struct {
@@ -296,24 +300,11 @@ bool blsect_get_attr_str(const bl_section_t* p_hdr, bl_attr_t attr_id,
   return false;
 }
 
-bool blsect_hash_sentence_from_flash(const bl_section_t* p_hdr,
-                                     bl_addr_t pl_addr,
-                                     bl_hash_sentence_t* p_result,
-                                     bl_cbarg_t progr_arg) {
-  const size_t sentence_size =
-      sizeof(p_hdr->name) + sizeof(p_hdr->pl_ver) + SHA256_DIGEST_LENGTH;
-
+bool blsect_hash_over_flash(const bl_section_t* p_hdr, bl_addr_t pl_addr,
+                            bl_hash_t* p_result, bl_cbarg_t progr_arg) {
   if (p_hdr && blsect_is_payload(p_hdr) && p_result &&
-      sentence_size == sizeof(p_result->bytes)) {
-    uint8_t* p_out = p_result->bytes;
-    // Copy section name
-    memcpy(p_out, p_hdr->name, sizeof(p_hdr->name));
-    p_out += sizeof(p_hdr->name);
-
-    // Copy payload version
-    memcpy(p_out, &p_hdr->pl_ver, sizeof(p_hdr->pl_ver));
-    p_out += sizeof(p_hdr->pl_ver);
-
+      sizeof(p_result->digest) == SHA256_DIGEST_LENGTH &&
+      sizeof(p_result->sect_name) == sizeof(p_hdr->name)) {
     // Calculate hash reading data from flash memory
     size_t rm_bytes = p_hdr->pl_size;
     bl_addr_t curr_addr = pl_addr;
@@ -332,8 +323,112 @@ bool blsect_hash_sentence_from_flash(const bl_section_t* p_hdr,
       rm_bytes -= read_len;
       bl_report_progress(progr_arg, p_hdr->pl_size, p_hdr->pl_size - rm_bytes);
     }
-    sha256_Final(&context, p_out);
+
+    // Save calculated digest
+    sha256_Final(&context, p_result->digest);
+    // Save additional information
+    memcpy(p_result->sect_name, p_hdr->name, sizeof(p_result->sect_name));
+    p_result->pl_ver = p_hdr->pl_ver;
     return true;
+  }
+  return false;
+}
+
+/**
+ * Returns brief section name
+ *
+ * @param sect_name  section name
+ * @return           pointer to null-terminated string if successfull of NULL if
+ *                   failed
+ */
+static const char* brief_section_name(const char* sect_name) {
+  static const char* brief_boot = "b";
+  static const char* brief_main = "";
+
+  if (bl_streq(sect_name, "boot")) {
+    return brief_boot;
+  } else if (bl_streq(sect_name, "main")) {
+    return brief_main;
+  }
+  return NULL;
+}
+
+/**
+ * Converts binary data into an array of 5-bit values
+ *
+ * @param dst         destination buffer where produced array is placed
+ * @param p_dst_size  pointer to variable holding capacity of the destination
+ *                    buffer, filled with actual array size on return
+ * @param src         source buffer holding input data
+ * @param src_size    size of input data
+ * @return            true if successful
+ */
+BL_STATIC_NO_TEST bool bytes_to_5bit(uint8_t* dst, size_t* p_dst_size,
+                                     const uint8_t* src, size_t src_size) {
+  if (dst && src && src_size && src_size < (SIZE_MAX / 8U - 4U) && p_dst_size &&
+      *p_dst_size >= (src_size * 8U + 4U) / 5U) {
+    uint8_t* p_dst = dst;
+    int dst_bit = 4;
+    *p_dst = 0U;
+
+    const uint8_t* p_src = src;
+    while (p_src != src + src_size) {
+      for (int src_bit = 7; src_bit >= 0; --src_bit) {
+        if (dst_bit < 0) {
+          dst_bit = 4;
+          *(++p_dst) = 0U;
+        }
+        *p_dst |= (*p_src >> src_bit & 1) << dst_bit--;
+      }
+      ++p_src;
+    }
+    *p_dst_size = p_dst - dst + 1U;
+    return true;
+  }
+  return false;
+}
+
+bool blsect_make_signature_message(uint8_t* msg_buf, size_t* p_msg_size,
+                                   const bl_hash_t* p_hashes,
+                                   size_t hash_items) {
+  if (msg_buf && p_msg_size && *p_msg_size && p_hashes && hash_items) {
+    SHA256_CTX sha_ctx;            // SHA-256 context
+    char hrp[SIG_MSG_HRP_MAX];     // Human readable part
+    char ver[BL_VERSION_STR_MAX];  // Buffer for version string
+    sha256_Init(&sha_ctx);
+    hrp[0] = '\0';
+
+    // Process all hash items
+    bool ok = true;
+    const bl_hash_t* p_hash = p_hashes;
+    while (ok && p_hash < p_hashes + hash_items) {
+      const char* brief_name = brief_section_name(p_hash->sect_name);
+      ok = ok && brief_name;
+      ok = ok && bl_strcat_checked(hrp, sizeof(hrp), brief_name);
+      ok = ok && bl_version_to_sig_str(p_hash->pl_ver, ver, sizeof(ver));
+      ok = ok && bl_strcat_checked(hrp, sizeof(hrp), ver);
+      ok = ok && bl_strcat_checked(hrp, sizeof(hrp), "-");
+      sha256_Update(&sha_ctx, p_hash->digest, sizeof(p_hash->digest));
+      ++p_hash;
+    }
+
+    // Create Bech32 message
+    if (ok) {
+      // Create digest and convert it to 5-bit values
+      uint8_t digest[SHA256_DIGEST_LENGTH];
+      sha256_Final(&sha_ctx, digest);
+      uint8_t digest_5bit[(SHA256_DIGEST_LENGTH * 8U + 4U) / 5U];
+      size_t digest_5bit_len = sizeof(digest_5bit);
+      ok = bytes_to_5bit(digest_5bit, &digest_5bit_len, digest, sizeof(digest));
+
+      // Create Bech32 message
+      size_t msg_size = strlen(hrp) + digest_5bit_len + 8U;
+      ok = ok && *p_msg_size >= msg_size;
+      ok = ok && 1 == bech32_encode((char*)msg_buf, hrp, digest_5bit,
+                                    digest_5bit_len);
+      *p_msg_size = msg_size - 1U;
+      return ok;
+    }
   }
   return false;
 }

@@ -25,21 +25,21 @@ r46GddMecCBW1Ur3wXHq77tr/+DaDZdZAJGSfuCWAY4=
 """
 
 # Reference private key, dumped using OpenSSL
-ref_seckey = bytes( [0x97, 0xbb, 0x5c, 0x85, 0x61, 0x42, 0x3b, 0x38,
-                     0xa9, 0x44, 0x4e, 0x9a, 0x0d, 0x9b, 0xf8, 0xc9,
-                     0x21, 0xd5, 0xb6, 0x41, 0xcb, 0x25, 0xfe, 0x3c,
-                     0x72, 0xab, 0x05, 0xdf, 0x7a, 0xef, 0x4e, 0x35] )
+ref_seckey = bytes([0x97, 0xbb, 0x5c, 0x85, 0x61, 0x42, 0x3b, 0x38,
+                    0xa9, 0x44, 0x4e, 0x9a, 0x0d, 0x9b, 0xf8, 0xc9,
+                    0x21, 0xd5, 0xb6, 0x41, 0xcb, 0x25, 0xfe, 0x3c,
+                    0x72, 0xab, 0x05, 0xdf, 0x7a, 0xef, 0x4e, 0x35])
 
 # Reference public key, dumped using OpenSSL
-ref_pubkey = bytes( [ 0x04,
-                      0x0b, 0x61, 0x6d, 0x40, 0x3d, 0x49, 0x56, 0xe6,
-                      0xab, 0x00, 0x7a, 0x36, 0xe2, 0xa7, 0xa5, 0x73,
-                      0x19, 0xfa, 0x82, 0x36, 0x19, 0x77, 0xbb, 0x30,
-                      0x73, 0x80, 0xfa, 0x43, 0xff, 0x8f, 0x83, 0x26,
-                      0x24, 0xb5, 0x70, 0x42, 0x26, 0xbb, 0x0c, 0x87,
-                      0xdf, 0x8f, 0x49, 0xb4, 0xbf, 0x46, 0x3d, 0x18,
-                      0xbc, 0x29, 0x2b, 0xce, 0xfd, 0x83, 0xf2, 0x9f,
-                      0x5b, 0x81, 0xe0, 0xc9, 0x02, 0xc6, 0x5e, 0x21] )
+ref_pubkey = bytes([0x04,
+                    0x0b, 0x61, 0x6d, 0x40, 0x3d, 0x49, 0x56, 0xe6,
+                    0xab, 0x00, 0x7a, 0x36, 0xe2, 0xa7, 0xa5, 0x73,
+                    0x19, 0xfa, 0x82, 0x36, 0x19, 0x77, 0xbb, 0x30,
+                    0x73, 0x80, 0xfa, 0x43, 0xff, 0x8f, 0x83, 0x26,
+                    0x24, 0xb5, 0x70, 0x42, 0x26, 0xbb, 0x0c, 0x87,
+                    0xdf, 0x8f, 0x49, 0xb4, 0xbf, 0x46, 0x3d, 0x18,
+                    0xbc, 0x29, 0x2b, 0xce, 0xfd, 0x83, 0xf2, 0x9f,
+                    0x5b, 0x81, 0xe0, 0xc9, 0x02, 0xc6, 0x5e, 0x21])
 
 # Fingerprint of the reference public key
 ref_pubkey_fingerprint = bytes.fromhex('0576c1a90e1c9015563a283c7bb7e0f8')
@@ -51,13 +51,9 @@ wrong_pubkey = secp256k1.ec_pubkey_serialize(
     secp256k1.ec_pubkey_create(wrong_seckey), secp256k1.EC_UNCOMPRESSED)
 
 # Reference message for signing
-ref_message = (b"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed "
-               b"ornare tincidunt pharetra. Mauris at molestie quam, et "
-               b"placerat justo. Aenean maximus quam tortor, vel pellentesque "
-               b"sapien tincidunt lacinia. Vivamus id dui at magna lacinia "
-               b"lacinia porttitor eu justo. Phasellus scelerisque porta "
-               b"augue. Vestibulum id diam vulputate, sagittis nibh eu, "
-               b"egestas mi. Proin congue imperdiet dictum.")
+ref_message = (b"b77.777.777rc77-77.777.777rc77-1tudm93ag6fu6y7x4q6s87ar6zskyc"
+               b"pmceltrmt7s577aa94yzan9zeyvfd")
+
 
 def test_selfcheck():
     assert len(wrong_seckey) == 32
@@ -65,9 +61,11 @@ def test_selfcheck():
     assert wrong_seckey != ref_seckey
     assert wrong_pubkey != ref_pubkey
 
+
 def test_is_pem_encrypted():
     assert not is_pem_encrypted(secp256k1_seckey_pem)
     assert is_pem_encrypted(secp256k1_seckey_pem_encrypted)
+
 
 def test_seckey_from_pem():
     seckey = seckey_from_pem(secp256k1_seckey_pem)
@@ -79,6 +77,7 @@ def test_seckey_from_pem():
     seckey_dec = seckey_from_pem(secp256k1_seckey_pem_encrypted, b'123456')
     assert seckey_dec == ref_seckey
 
+
 def test_pubkey_fingerprint():
     fp = pubkey_fingerprint(ref_pubkey)
     assert isinstance(fp, bytes)
@@ -87,12 +86,14 @@ def test_pubkey_fingerprint():
     assert fp == pubkey_fingerprint_from_seckey(ref_seckey)
     assert pubkey_fingerprint(wrong_pubkey) != fp
 
+
 def test_pubkey_fingerprint_from_seckey():
     fp = pubkey_fingerprint_from_seckey(ref_seckey)
     assert isinstance(fp, bytes)
     assert len(fp) == FINGERPRINT_LEN
     assert fp == ref_pubkey_fingerprint
     assert pubkey_fingerprint_from_seckey(wrong_seckey) != fp
+
 
 def test_sign_verify():
     signature = sign(ref_message, ref_seckey)
@@ -102,3 +103,14 @@ def test_sign_verify():
     assert not verify(signature, ref_message, wrong_pubkey)
     wrong_signature = sign(ref_message, wrong_seckey)
     assert not verify(wrong_signature, ref_message, ref_pubkey)
+
+
+def test_parse_recoverable_sig():
+    msg = b"Hello world"
+    pubkey = secp256k1.ec_pubkey_serialize(
+        secp256k1.ec_pubkey_create(b"1"*32), secp256k1.EC_UNCOMPRESSED)
+    b64_sig = ("IKe84tb3CO7KPw7laQsh6Bjk0qNp5s1lId/iLcRBWmE1Nn8t6drArd1oiEkuPu"
+               "shNuDqQs8WB0kqxZ+MDmXBruQ=")
+    dec_sig, dec_pubkey = parse_recoverable_sig(b64_sig, msg)
+    assert dec_pubkey == pubkey
+    assert verify(dec_sig, msg, pubkey)

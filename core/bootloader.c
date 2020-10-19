@@ -26,7 +26,7 @@
 /// Name of the section containing the Bootloader firmware
 #define NAME_BOOT "boot"
 /// Name of the section containing the Main firmware
-#define NAME_MAIN "internal"
+#define NAME_MAIN "main"
 /// Caption text provided to progress reporting function
 #define PROGRESS_CAPTION "Firmware Upgrade"
 /// Caption text provided used for information messages
@@ -42,8 +42,8 @@
 /// Size of statically allocated shared IO buffer
 #define IO_BUF_SIZE 4096U
 #endif
-/// Maximum number of hash sentence items in the signature message
-#define SIGMSG_MAX_ITEMS 2U
+/// Maximum number Payload sections
+#define MAX_PL_SECTIONS 2U
 
 /// Flash memory map items
 typedef struct flash_map_t {
@@ -152,10 +152,8 @@ static struct {
   char format_buf[256];
   // IO buffer
   uint8_t io_buf[IO_BUF_SIZE];
-  /// Signature message, a concatenation of hash sentences of Payload sections
-  bl_hash_sentence_t sigmsg_buf[SIGMSG_MAX_ITEMS];
-  /// Length of the signature message in hash sentence items
-  size_t sigmsg_items;
+  /// Hashes of of Payload sections
+  bl_hash_t hash_buf[MAX_PL_SECTIONS];
 } bl_ctx;
 
 /**
@@ -233,6 +231,20 @@ static bool validate_pubkey_set(const bl_pubkey_set_t* p_set) {
     return ok;
   }
   return false;
+}
+
+/**
+ * Returns number of payload sections in an upgrade file
+ *
+ * @param p_md  pointer to upgrade file metadata
+ * @return      number of payload sections, 0 if failed
+ */
+static inline size_t count_payload_sections(const file_metadata_t* p_md) {
+  if (p_md) {
+    return (p_md->boot_section.loaded ? 1U : 0U) +
+           (p_md->main_section.loaded ? 1U : 0U);
+  }
+  return 0U;
 }
 
 /**
@@ -812,39 +824,39 @@ static bool copy_sections(bl_file_t file, const file_metadata_t* p_md,
 /**
  * Calculates hash message reading firmware sections from flash memory
  *
- * @param p_msg        buffer, where produced message will be placed
- * @param p_msg_items  pointer to variable, holding capacity of message buffer,
- *                     filled with actual number of hash sentences on return
- * @param p_md         pointer to upgrade file metadata
- * @param bl_addr      address of currently executed Bootloader
- * @return             true is successful
+ * @param hash_buf    buffer, where produced hashes will be placed
+ * @param p_hash_items  pointer to variable holding capacity of the hash
+ *                      buffer, filled with actual number of hashes on return
+ * @param p_md          pointer to upgrade file metadata
+ * @param bl_addr       address of currently executed Bootloader
+ * @return              true is successful
  */
-static bool hash_flash_sections(bl_hash_sentence_t* p_msg, size_t* p_msg_items,
+static bool hash_flash_sections(bl_hash_t* hash_buf, size_t* p_hash_items,
                                 const file_metadata_t* p_md,
                                 bl_addr_t bl_addr) {
-  if (p_msg && p_msg_items && p_md) {
-    bl_hash_sentence_t* p_sentence = p_msg;  // Pointer to current hash sentence
-    size_t avl_items = *p_msg_items;         // Available items in buffer
+  if (hash_buf && p_hash_items && p_md) {
+    bl_hash_t* p_item = hash_buf;      // Pointer to current hash item
+    size_t avl_items = *p_hash_items;  // Available items in buffer
 
     if (p_md->boot_section.loaded) {
       if (!avl_items ||
-          !blsect_hash_sentence_from_flash(
-              &p_md->boot_section.header, get_inactive_bl_addr(bl_addr),
-              p_sentence++, stage_calc_hash | substage_boot)) {
+          !blsect_hash_over_flash(&p_md->boot_section.header,
+                                  get_inactive_bl_addr(bl_addr), p_item++,
+                                  stage_calc_hash | substage_boot)) {
         return false;
       }
       --avl_items;
     }
     if (p_md->main_section.loaded) {
       if (!avl_items ||
-          !blsect_hash_sentence_from_flash(
-              &p_md->main_section.header, bl_ctx.flash_map.firmware_base,
-              p_sentence++, stage_calc_hash | substage_main)) {
+          !blsect_hash_over_flash(&p_md->main_section.header,
+                                  bl_ctx.flash_map.firmware_base, p_item++,
+                                  stage_calc_hash | substage_main)) {
         return false;
       }
     }
-    // Update number of sentences in the message
-    *p_msg_items = p_sentence - p_msg;
+    // Update number of items in hash buffer
+    *p_hash_items = p_item - hash_buf;
     return true;
   }
   return false;
@@ -860,46 +872,55 @@ static bool hash_flash_sections(bl_hash_sentence_t* p_msg, size_t* p_msg_items,
  * signatures, that could be lower than needed threshold (in such case the
  * function still returns false).
  *
- * This function returns true ONLY when: (a) there are no duplicating
- * signatures, (b) all signatures for which we have keys are valid (c) number
- * of valid signatures is equal or greater than the multisig threshold. These
- * thresholds are configured independently for upgrade files containing the
- * Bootloader and for upgrade files having just the Main firmware.
+ * This function returns true ONLY when all the following conditions are met:
+ * (a) there are no duplicating signatures,
+ * (b) all signatures for which we have keys are valid,
+ * (c) number of valid signatures is equal or greater than the multisig
+ * threshold.
+ *
+ * Multisig thresholds are configured independently for upgrade files containing
+ * the Bootloader and for upgrade files having just the Main Firmware.
  *
  * @param p_md        pointer to upgrade file metadata
  * @param p_keyset    set of public keys and multisig thresholds
- * @param msg         buffer with signature message, M
- * @param msg_n_hash  number of hash sentences in the message
+ * @param hash_buf    buffer with hash structures of payload sections
+ * @param hash_items  number of hash structures in buffer
  * @param p_result    pointer to variable receiving verification result
  * @return            true if the message passes multisig verification
  */
 static bool verify_multisig(const file_metadata_t* p_md,
                             const bl_pubkey_set_t* p_keyset,
-                            const bl_hash_sentence_t* msg, size_t msg_n_hash,
+                            const bl_hash_t* hash_buf, size_t hash_items,
                             int32_t* p_result) {
   if (p_result) {
     *p_result = blsig_err_verification_fail;
   }
-  if (p_md && p_md->sig_section.loaded && p_keyset && msg && msg_n_hash &&
-      p_result) {
+  if (p_md && p_md->sig_section.loaded && p_keyset && hash_buf &&
+      count_payload_sections(p_md) == hash_items && p_result) {
+    // Get algorithm identifier from the attributes of the Signature section
     char algorithm[BL_ATTR_STR_MAX] = "";
     if (blsect_get_attr_str(&p_md->sig_section.header, bl_attr_algorithm,
                             algorithm, sizeof(algorithm))) {
+      // Prepare public keys
       const bl_pubkey_t* pubkeys_boot[] = {p_keyset->vendor_pubkeys, NULL};
       const bl_pubkey_t* pubkeys_main[] = {p_keyset->vendor_pubkeys,
                                            p_keyset->maintainer_pubkeys, NULL};
-      // Perform signature verification
-      *p_result = blsig_verify_multisig(
-          algorithm, p_md->sig_payload, p_md->sig_section.header.pl_size,
-          p_md->boot_section.loaded ? pubkeys_boot : pubkeys_main,
-          (const uint8_t*)msg, msg_n_hash * sizeof(bl_hash_sentence_t),
-          stage_verify_sig);
+      // Make a Bech32 message for signature verification
+      uint8_t msg[BL_SIG_MSG_MAX];
+      size_t msg_size = sizeof(msg);
+      if (blsect_make_signature_message(msg, &msg_size, hash_buf, hash_items)) {
+        // Perform signature verification
+        *p_result = blsig_verify_multisig(
+            algorithm, p_md->sig_payload, p_md->sig_section.header.pl_size,
+            p_md->boot_section.loaded ? pubkeys_boot : pubkeys_main, msg,
+            msg_size, stage_verify_sig);
 
-      if (*p_result >= 0) {  // Verification is successful
-        // Compare number of valid signatures with the thresholds
-        return p_md->boot_section.loaded
-                   ? *p_result >= p_keyset->bootloader_sig_threshold
-                   : *p_result >= p_keyset->main_fw_sig_threshold;
+        if (*p_result >= 0) {  // Verification is successful
+          // Compare number of valid signatures with the thresholds
+          return p_md->boot_section.loaded
+                     ? *p_result >= p_keyset->bootloader_sig_threshold
+                     : *p_result >= p_keyset->main_fw_sig_threshold;
+        }
       }
     }
   }
@@ -1082,16 +1103,16 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
   }
 
   // Calculate signature message by hashing all Payload sections in flash memory
-  bl_ctx.sigmsg_items = SIGMSG_MAX_ITEMS;
-  if (!hash_flash_sections(bl_ctx.sigmsg_buf, &bl_ctx.sigmsg_items,
-                           &bl_ctx.file_metadata, p_args->loaded_from)) {
+  size_t hash_items = sizeof(bl_ctx.hash_buf) / sizeof(bl_ctx.hash_buf[0]);
+  if (!hash_flash_sections(bl_ctx.hash_buf, &hash_items, &bl_ctx.file_metadata,
+                           p_args->loaded_from)) {
     fatal_error("Error calculating hash of the firmware");
   }
 
   // Verify multiple signatures
   int32_t verify_res = 0;
-  if (!verify_multisig(&bl_ctx.file_metadata, &bl_pubkey_set, bl_ctx.sigmsg_buf,
-                       bl_ctx.sigmsg_items, &verify_res)) {
+  if (!verify_multisig(&bl_ctx.file_metadata, &bl_pubkey_set, bl_ctx.hash_buf,
+                       hash_items, &verify_res)) {
     const char* err_text = blsig_is_error(verify_res)
                                ? blsig_error_text(verify_res)
                                : "Not enough signatures";

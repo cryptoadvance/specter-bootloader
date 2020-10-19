@@ -75,8 +75,7 @@ extern "C" {
  * Performs verification of multiple signatures
  *
  * This function checks a number of signatures taking on input a list of
- * public keys and a message sonsisted of concatenated hash sentences for each
- * payload section of the firmware.
+ * public keys and a message generated from Payload sections.
  *
  * Public keys are provided in form of a lis of lists (key set). External list
  * is a list of pointers to bl_pubkey_t[] arrays, terminated with NULL pointer.
@@ -107,7 +106,7 @@ extern "C" {
  * @param sig_pl       pointer to contents of Signature section (its payload)
  * @param sig_pl_size  size of the contents of Signature section in bytes
  * @param pubkey_set   NULL-terminated list of pointers to public key lists
- * @param message      message, concatenated hash sentences of Payload sections
+ * @param message      message used to generate signature
  * @param message_len  length of the message in bytes
  * @param progr_arg    argument passed to progress callback function
  * @return             number of verified signatures, or a negative number in

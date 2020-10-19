@@ -19,12 +19,10 @@
 #define BL_PAYLOAD_SIZE_MAX (16U * 1024U * 1024U)
 /// Size of SHA-256 output
 #define BL_HASH_SIZE 32U
-/// Size of hash sentence of a payload section
-#define BL_HASH_SENTENCE_SIZE                                                  \
-  (BL_MEMBER_SIZE(bl_section_t, name) + BL_MEMBER_SIZE(bl_section_t, pl_ver) + \
-   BL_HASH_SIZE)
 /// Maximum size of string attribute including null character
 #define BL_ATTR_STR_MAX (32U + 1U)
+/// Maximum size of a signature message including terminating null character
+#define BL_SIG_MSG_MAX (90U + 1U)
 
 /// Type of unsigned integer attribute
 typedef uint64_t bl_uint_t;
@@ -56,11 +54,15 @@ typedef struct BL_ATTRS((packed)) bl_section_t {
   uint32_t struct_crc;     ///< CRC of this structure using LE representation
 } bl_section_t;
 
-/// Hash sentence of a payload section
-typedef struct BL_ATTRS((packed)) bl_hash_sentence_t {
-  /// Raw data
-  uint8_t bytes[BL_HASH_SENTENCE_SIZE];
-} bl_hash_sentence_t;
+/// Hash of a payload section with additional information from section's header
+typedef struct BL_ATTRS((packed)) bl_hash_t {
+  /// Digest calculated over the header and the payload
+  uint8_t digest[BL_HASH_SIZE];
+  /// Section name, zero terminated, unused bytes are 0x00
+  char sect_name[16];
+  /// Version of section's payload
+  uint32_t pl_ver;
+} bl_hash_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -150,21 +152,35 @@ bool blsect_get_attr_str(const bl_section_t* p_hdr, bl_attr_t attr_id,
                          char* buf, size_t buf_size);
 
 /**
- * Calculates hash sentence reading payload from flash memory
- *
- * This function calculates the hash sentence containing section's name, version
- * and hash digest calculated over payload stored in flash memory.
+ * Calculates hash of a Payload section reading payload from flash memory
  *
  * @param p_hdr      pointer to header, assumed to be valid
  * @param pl_addr    address of payload in flash memory
- * @param p_result   pointer to variable receiving produced hash sentence
+ * @param p_result   pointer to variable receiving produced hash
  * @param progr_arg  argument passed to progress callback function
  * @return           true if successful
  */
-bool blsect_hash_sentence_from_flash(const bl_section_t* p_hdr,
-                                     bl_addr_t pl_addr,
-                                     bl_hash_sentence_t* p_result,
-                                     bl_cbarg_t progr_arg);
+bool blsect_hash_over_flash(const bl_section_t* p_hdr, bl_addr_t pl_addr,
+                            bl_hash_t* p_result, bl_cbarg_t progr_arg);
+
+/**
+ * Creates a message to be used with signature algorithm from a set of section
+ * hashes
+ *
+ * The message is produced in Bech32 format having version information in
+ * its human readable part and a combined hash of all Payload sections in its
+ * data part.
+ *
+ * @param msg_buf     buffer where produced message is placed
+ * @param p_msg_size  pointer to variable holding capacity of the message
+ *                    buffer, filled with actual message size on return
+ * @param p_hashes    input hash structures
+ * @param hash_items  number of hash structures to process
+ * @return            true if successful
+ */
+bool blsect_make_signature_message(uint8_t* msg_buf, size_t* p_msg_size,
+                                   const bl_hash_t* p_hashes,
+                                   size_t hash_items);
 
 #ifdef __cplusplus
 }  // extern "C"
