@@ -1,5 +1,6 @@
 import ctypes, os
 import ctypes.util
+import platform
 
 from ctypes import (
     byref, c_byte, c_int, c_uint, c_char_p, c_size_t, 
@@ -17,6 +18,10 @@ EC_UNCOMPRESSED = 0b0000000010
 
 def _init(flags = (CONTEXT_SIGN | CONTEXT_VERIFY)):
     library_path = ctypes.util.find_library('libsecp256k1')
+    # library search failed
+    if not library_path:
+        if platform.system() == "Linux":
+            library_path = "/usr/local/lib/libsecp256k1.so.0"
 
     secp256k1 = ctypes.cdll.LoadLibrary(library_path)
 
