@@ -70,7 +70,8 @@ static const bl_pubkey_t vendor_pubkey_list[] = {
                0x81U, 0x0CU, 0x7AU, 0x22U, 0x2EU, 0x8FU, 0xD4U, 0x7AU, 0x02U,
                0xF6U, 0xB9}},
 
-    // The following public keys are exported from a BIP32 wallet with the seed:
+    // The following public keys are exported from Electrum wallet with the
+    // folowing seed:
     // "ripple ask sword jaguar federal fork awake hundred galaxy sadness ice
     //  live"
 
