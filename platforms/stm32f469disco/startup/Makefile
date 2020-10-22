@@ -68,14 +68,13 @@ C_INCLUDES =  \
 
 # C defines
 C_DEFS =  \
--DPLATFORM_ID=\"$(TARGET_PLATFORM)\" \
--DUSE_HAL_DRIVER \
--DSTM32F469xx \
--DHAVE_CONFIG_H \
--D__BYTE_ORDER=1234 \
--DCRC32_USE_LOOKUP_TABLE_SLICING_BY_4 \
--DBL_NO_FATFS \
--Wno-unused-function
+PLATFORM_ID=\"$(TARGET_PLATFORM)\" \
+USE_HAL_DRIVER \
+STM32F469xx \
+HAVE_CONFIG_H \
+__BYTE_ORDER=1234 \
+CRC32_USE_LOOKUP_TABLE_SLICING_BY_4 \
+BL_NO_FATFS \
 
 # ASM sources
 ASM_SOURCES = $(shell find $(LOC_ROOT) -name *.s)
@@ -124,9 +123,11 @@ FLOAT-ABI = -mfloat-abi=hard
 MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
 
 # compile gcc flags
-ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
+ASFLAGS = $(MCU) $(addprefix -D,$(AS_DEFS)) $(AS_INCLUDES) $(OPT) \
+-Wall -fdata-sections -ffunction-sections
 
-CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
+CFLAGS = $(MCU) $(addprefix -D,$(C_DEFS)) $(C_INCLUDES) $(OPT) \
+-Wall -Wno-unused-function -fdata-sections -ffunction-sections
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2 -DDEBUG=1

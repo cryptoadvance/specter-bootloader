@@ -57,13 +57,12 @@ C_INCLUDES =  \
 
 # C defines
 C_DEFS =  \
--DUNIT_TEST \
--DBL_NO_FATFS \
--DHAVE_CONFIG_H \
--DSECP256K1_BUILD \
--D__BYTE_ORDER=1234 \
--DCRC32_USE_LOOKUP_TABLE_SLICING_BY_8 \
--Wno-unused-function
+UNIT_TEST \
+BL_NO_FATFS \
+HAVE_CONFIG_H \
+SECP256K1_BUILD \
+__BYTE_ORDER=1234 \
+CRC32_USE_LOOKUP_TABLE_SLICING_BY_8 \
 
 OBJS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))
@@ -73,12 +72,14 @@ vpath %.cpp $(sort $(dir $(CPP_SOURCES)))
 
 DEPS := $(OBJS:.o=.d)
 
-CFLAGS = $(C_INCLUDES) -MMD -MP -Werror $(C_DEFS)
+CFLAGS = $(C_INCLUDES) -MMD -MP -Werror -Wno-unused-function \
+$(addprefix -D,$(C_DEFS))
+
 CPPFLAGS = -std=c++14
 LDFLAGS ?= -lstdc++
 
 ifeq ($(DEBUG), 1)
-CFLAGS += -g
+CFLAGS += -g -DDEBUG=1
 LDFLAGS += -g
 endif
 
