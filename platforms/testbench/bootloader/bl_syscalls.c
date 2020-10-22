@@ -21,6 +21,12 @@
 /// Flags used with fnmatch() function to match file names
 #define FNMATCH_FLAGS (FNM_FILE_NAME | FNM_PERIOD)
 
+/// Flags for emulated flash memory
+typedef enum flash_emu_flags_t {
+  /// Byte is write protected
+  flash_emu_wr_protect = (1 << 0)
+} flash_emu_flags_t;
+
 /// Flash memory map
 // clang-format off
 const bl_addr_t bl_flash_map[bl_flash_map_nitems] = {
@@ -42,6 +48,8 @@ static const char* alert_type_str[bl_nalerts] = {
 
 /// Buffer in RAM used to emulate flash memory
 static uint8_t* flash_emu_buf = NULL;
+/// Buffer in RAM storing flags for emulated flash memory
+static uint8_t* flash_emu_flags = NULL;
 /// Printed characters of the progress message
 static int progress_n_chr = -1;
 static char* progress_prev_text = NULL;
@@ -56,9 +64,14 @@ bool blsys_init(void) {
   progress_n_chr = -1;
   progress_prev_text = NULL;
   flash_emu_buf = malloc(FLASH_EMU_SIZE);
-  if (!flash_emu_buf) {
+  flash_emu_flags = malloc(FLASH_EMU_SIZE);
+  if (!flash_emu_buf || !flash_emu_flags) {
     blsys_fatal_error("Unable to allocate flash emulation buffer");
   }
+
+  // Enable write protection for each byte by default
+  memset(flash_emu_flags, (uint8_t)flash_emu_wr_protect, FLASH_EMU_SIZE);
+
   size_t bytes_read = 0U;
   FILE* in_file = fopen(FLASH_EMU_FILE, "rb");
   if (in_file) {
@@ -76,6 +89,10 @@ void blsys_deinit(void) {
     free(progress_prev_text);
     progress_prev_text = NULL;
   }
+  if (flash_emu_flags) {
+    free(flash_emu_flags);
+    flash_emu_flags = NULL;
+  }
   if (flash_emu_buf) {
     size_t written = 0U;
     FILE* out_file = fopen(FLASH_EMU_FILE, "wb");
@@ -84,6 +101,7 @@ void blsys_deinit(void) {
       fclose(out_file);
     }
     free(flash_emu_buf);
+    flash_emu_buf = NULL;
     if (written != FLASH_EMU_SIZE) {
       blsys_fatal_error("Unable to dump emulated flash memory to a file");
     }
@@ -91,7 +109,7 @@ void blsys_deinit(void) {
 }
 
 /**
- * Checks if area in flash memory falls in valid address range
+ * Checks if an area in flash memory falls in valid address range
  *
  * @param addr  starting address
  * @param size  area size
@@ -105,8 +123,28 @@ static bool check_flash_area(bl_addr_t addr, size_t size) {
   return false;
 }
 
+/**
+ * Checks if an area in flash memory is allowed for writing or erasing
+ *
+ * @param addr  starting address
+ * @param size  area size
+ * @return      true if successful
+ */
+static bool is_write_allowed(bl_addr_t addr, size_t size) {
+  if (flash_emu_flags && check_flash_area(addr, size)) {
+    const uint8_t* p_flags = flash_emu_flags + (addr - FLASH_EMU_BASE);
+    for (size_t idx = 0; idx < size; ++idx, ++p_flags) {
+      if (*p_flags & flash_emu_wr_protect) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
 bool blsys_flash_erase(bl_addr_t addr, size_t size) {
-  if (flash_emu_buf && check_flash_area(addr, size)) {
+  if (flash_emu_buf && is_write_allowed(addr, size)) {
     size_t offset = addr - FLASH_EMU_BASE;
     memset(flash_emu_buf + offset, 0, size);
     return true;
@@ -124,13 +162,30 @@ bool blsys_flash_read(bl_addr_t addr, void* buf, size_t len) {
 }
 
 bool blsys_flash_write(bl_addr_t addr, const void* buf, size_t len) {
-  if (flash_emu_buf && buf && check_flash_area(addr, len)) {
+  if (flash_emu_buf && buf && is_write_allowed(addr, len)) {
     size_t offset = addr - FLASH_EMU_BASE;
     memcpy(flash_emu_buf + offset, buf, len);
     return true;
   }
   return false;
 }
+
+bool blsys_flash_write_protect(bl_addr_t addr, size_t size, bool enable) {
+  if (flash_emu_flags && check_flash_area(addr, size)) {
+    uint8_t* p_flags = flash_emu_flags + (addr - FLASH_EMU_BASE);
+    for (size_t idx = 0; idx < size; ++idx, ++p_flags) {
+      if (enable) {
+        *p_flags |= flash_emu_wr_protect;
+      } else {
+        *p_flags &= ~((uint8_t)flash_emu_wr_protect);
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+bool blsys_flash_read_protect(int level) { return true; }
 
 uint32_t blsys_media_devices(void) { return 1U; }
 
