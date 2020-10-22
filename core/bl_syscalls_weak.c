@@ -26,7 +26,7 @@
 
 /// Inert flash memory map
 const bl_addr_t bl_flash_map[bl_flash_map_nitems] WEAK = {
-    [bl_flash_firmware_base] = BL_ADDR_MAX}; // Marker of inert table
+    [bl_flash_firmware_base] = BL_ADDR_MAX};  // Marker of inert table
 
 WEAK const char* blsys_platform_id(void) {
   static const char* platform_id_ = PLATFORM_ID;
@@ -89,6 +89,12 @@ WEAK bool blsys_flash_crc32(uint32_t* p_crc, bl_addr_t addr, size_t len) {
   }
   return false;
 }
+
+WEAK bool blsys_flash_write_protect(bl_addr_t addr, size_t size, bool enable) {
+  return true;
+}
+
+WEAK bool blsys_flash_read_protect(int level) { return true; }
 
 WEAK uint32_t blsys_media_devices(void) { return 1U; }
 

@@ -174,6 +174,35 @@ bool blsys_flash_write(bl_addr_t addr, const void* buf, size_t len);
 bool blsys_flash_crc32(uint32_t* p_crc, bl_addr_t addr, size_t len);
 
 /**
+ * Enables or disables write protection of flash memory
+ *
+ * This function does nothing if requested write protection state is unchanged,
+ * simply returning true.
+ *
+ * @param addr    starting address of erased area
+ * @param size    size of erased area
+ * @param enable  protection state:
+ *                  * true - write protection is enabled
+ *                  * false - write protection is disabled
+ * @return        true if successful
+ */
+bool blsys_flash_write_protect(bl_addr_t addr, size_t size, bool enable);
+
+/**
+ * Enables read protection for the whole chip
+ *
+ * Typically this function is called when a preprocessor macro, READ_PROTECTION
+ * is defined, passing value of this macro as an argument.
+ *
+ * This function does nothing if requested read protection level is unchanged,
+ * simply returning true.
+ *
+ * @param level  protection level (platform dependent)
+ * @return       true if successful
+ */
+bool blsys_flash_read_protect(int level);
+
+/**
  * Returns a number of media devices searched for upgrade files
  *
  * The bootloader uses returned value to scan all available devices sequentially

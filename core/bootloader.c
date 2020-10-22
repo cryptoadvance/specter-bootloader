@@ -57,14 +57,16 @@ typedef struct flash_map_t {
 
 /// Stages of firmware upgrade process
 typedef enum upgrading_stage_t {
-  stage_read_file = 0,  ///< Reading upgrade file
-  stage_verify_file,    ///< Verifying file integrity
-  stage_erase_flash,    ///< Erasing flash memory
-  stage_write_flash,    ///< Writing flash memory
-  stage_calc_hash,      ///< Calculating hashes
-  stage_verify_sig,     ///< Verifying signatures
-  stage_create_icr,     ///< Creating integrity check records
-  n_upgrading_stages_   ///< Number of upgrading stages (not a stage)
+  stage_read_file = 0,    ///< Reading upgrade file
+  stage_verify_file,      ///< Verifying file integrity
+  stage_unprotect_flash,  ///< Removing flash memory protection
+  stage_erase_flash,      ///< Erasing flash memory
+  stage_write_flash,      ///< Writing flash memory
+  stage_protect_flash,    ///< Applying flash memory protection
+  stage_calc_hash,        ///< Calculating hashes
+  stage_verify_sig,       ///< Verifying signatures
+  stage_create_icr,       ///< Creating integrity check records
+  n_upgrading_stages_     ///< Number of upgrading stages (not a stage)
 } upgrading_stage_t;
 
 /// Substages of firmware upgrade process, a set of flags
@@ -97,20 +99,35 @@ typedef struct progress_ctx_t {
   uint32_t boot_percent_x100;
 } progress_ctx_t;
 
+/// Table with information about each upgrading stage
+// clang-format off
 static const upgrading_stage_info_t stage_info[n_upgrading_stages_] = {
-    [stage_read_file] = {.name = "Reading upgrade file", .percent = 2U},
-    [stage_verify_file] = {.name = "Verifying file integrity", .percent = 23U},
-    [stage_erase_flash] = {.name = "Erasing flash memory", .percent = 30U},
-    [stage_write_flash] = {.name = "Writing flash memory", .percent = 36},
-    [stage_calc_hash] = {.name = "Verifying signatures", .percent = 5U},
-    [stage_verify_sig] = {.name = "Verifying signatures", .percent = 2U},
-    [stage_create_icr] = {.name = "Finishing", .percent = 2U}};
+    [stage_read_file] =
+        {.name = "Reading upgrade file", .percent = 2U},
+    [stage_verify_file] =
+        {.name = "Verifying file integrity", .percent = 21U},
+    [stage_unprotect_flash] =
+        {.name = "Removing write protection", .percent = 1U},
+    [stage_erase_flash] =
+        {.name = "Erasing flash memory", .percent = 30U},
+    [stage_write_flash] =
+        {.name = "Writing flash memory", .percent = 36},
+    [stage_protect_flash] =
+        {.name = "Applying write protection", .percent = 1U},
+    [stage_calc_hash] =
+        {.name = "Verifying signatures", .percent = 5U},
+    [stage_verify_sig] =
+        {.name = "Verifying signatures", .percent = 2U},
+    [stage_create_icr] =
+        {.name = "Finishing", .percent = 2U}};
+// clang-format on
 
 /// Text strings corresponding to Bootloader statuses
 static const char* status_text[bl_n_statuses_] = {
     [bl_status_normal_exit] = "Normal exit",
     [bl_status_upgrade_complete] = "Upgrade complete",
     [bl_status_err_arg] = "Argument error",
+    [bl_status_err_platform] = "Platform error",
     [bl_status_err_pubkeys] = "Invalid public key set",
     [bl_status_err_internal] = "Internal error"};
 
@@ -751,6 +768,44 @@ static bool erase_flash(const file_metadata_t* p_md, bl_addr_t bl_addr) {
 }
 
 /**
+ * Enables or disables write protection of flash memory sections
+ *
+ * @param p_md     pointer to upgrade file metadata
+ * @param bl_addr  address of currently executed Bootloader
+ * @param enable   required protection state:
+ *                   * true - write protection is enabled
+ *                   * false - write protection is disabled
+ * @return         true if successful
+ */
+static bool set_write_protection_state(const file_metadata_t* p_md,
+                                       bl_addr_t bl_addr, bool enable) {
+  if (p_md) {
+    upgrading_stage_t stage =
+        enable ? stage_protect_flash : stage_unprotect_flash;
+
+    if (p_md->boot_section.loaded) {
+      bl_report_progress(stage | substage_boot, 1U, 0U);
+      if (!blsys_flash_write_protect(get_inactive_bl_addr(bl_addr),
+                                     bl_ctx.flash_map.bootloader_size,
+                                     enable)) {
+        return false;
+      }
+      bl_report_progress(stage | substage_boot, 1U, 1U);
+    }
+    if (p_md->main_section.loaded) {
+      bl_report_progress(stage | substage_main, 1U, 0U);
+      if (!blsys_flash_write_protect(bl_ctx.flash_map.firmware_base,
+                                     bl_ctx.flash_map.firmware_size, enable)) {
+        return false;
+      }
+      bl_report_progress(stage | substage_main, 1U, 1U);
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
  * Copies one firmware section from an upgrade file to the flash memory
  *
  * @param flash_addr  destination address in flash memory
@@ -1092,6 +1147,12 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
     fatal_error("Upgrade file is corrupted");
   }
 
+  // Remove write protection from needed sections of the flash memory
+  if (!set_write_protection_state(&bl_ctx.file_metadata, p_args->loaded_from,
+                                  false)) {
+    fatal_error("Error while removing write protection");
+  }
+
   // Erase needed sections in the flash memory before copying
   if (!erase_flash(&bl_ctx.file_metadata, p_args->loaded_from)) {
     fatal_error("Error while erasing the flash memory");
@@ -1100,6 +1161,12 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
   // Copy firmware to the flash memory
   if (!copy_sections(file, &bl_ctx.file_metadata, p_args->loaded_from)) {
     fatal_error("Error copying firmware to the flash memory");
+  }
+
+  // Restore write protection for updated sections of the flash memory
+  if (!set_write_protection_state(&bl_ctx.file_metadata, p_args->loaded_from,
+                                  true)) {
+    fatal_error("Error while applying write protection");
   }
 
   // Calculate signature message by hashing all Payload sections in flash memory
@@ -1281,6 +1348,13 @@ static bl_status_t bootloader_run_initialized(const bl_args_t* p_args,
   if (!validate_pubkey_set(&bl_pubkey_set)) {
     return bl_status_err_pubkeys;
   }
+
+#ifdef READ_PROTECTION
+  int rdp_level = (int)(READ_PROTECTION);
+  if (!blsys_flash_read_protect(rdp_level)) {
+    fatal_error("Cannot set read protection level %i", rdp_level);
+  }
+#endif
 
   bl_status_t status = bl_status_normal_exit;
   const char* file_name = find_file(UPGRADE_PATH, UPGRADE_FILES);
