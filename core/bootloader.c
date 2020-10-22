@@ -62,10 +62,10 @@ typedef enum upgrading_stage_t {
   stage_unprotect_flash,  ///< Removing flash memory protection
   stage_erase_flash,      ///< Erasing flash memory
   stage_write_flash,      ///< Writing flash memory
-  stage_protect_flash,    ///< Applying flash memory protection
   stage_calc_hash,        ///< Calculating hashes
   stage_verify_sig,       ///< Verifying signatures
   stage_create_icr,       ///< Creating integrity check records
+  stage_protect_flash,    ///< Applying flash memory protection
   n_upgrading_stages_     ///< Number of upgrading stages (not a stage)
 } upgrading_stage_t;
 
@@ -112,14 +112,14 @@ static const upgrading_stage_info_t stage_info[n_upgrading_stages_] = {
         {.name = "Erasing flash memory", .percent = 30U},
     [stage_write_flash] =
         {.name = "Writing flash memory", .percent = 36},
-    [stage_protect_flash] =
-        {.name = "Applying write protection", .percent = 1U},
     [stage_calc_hash] =
         {.name = "Verifying signatures", .percent = 5U},
     [stage_verify_sig] =
         {.name = "Verifying signatures", .percent = 2U},
     [stage_create_icr] =
-        {.name = "Finishing", .percent = 2U}};
+        {.name = "Finishing", .percent = 2U},
+    [stage_protect_flash] =
+        {.name = "Applying write protection", .percent = 1U}};
 // clang-format on
 
 /// Text strings corresponding to Bootloader statuses
@@ -1163,12 +1163,6 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
     fatal_error("Error copying firmware to the flash memory");
   }
 
-  // Restore write protection for updated sections of the flash memory
-  if (!set_write_protection_state(&bl_ctx.file_metadata, p_args->loaded_from,
-                                  true)) {
-    fatal_error("Error while applying write protection");
-  }
-
   // Calculate signature message by hashing all Payload sections in flash memory
   size_t hash_items = sizeof(bl_ctx.hash_buf) / sizeof(bl_ctx.hash_buf[0]);
   if (!hash_flash_sections(bl_ctx.hash_buf, &hash_items, &bl_ctx.file_metadata,
@@ -1192,6 +1186,12 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
   if (!create_icrs(&bl_ctx.file_metadata, p_args->loaded_from,
                    &bl_ctx.flash_map)) {
     fatal_error("Error creating integrity check records");
+  }
+
+  // Restore write protection for updated sections of the flash memory
+  if (!set_write_protection_state(&bl_ctx.file_metadata, p_args->loaded_from,
+                                  true)) {
+    fatal_error("Error while applying write protection");
   }
 
   // Notify the user that upgrade is complete
