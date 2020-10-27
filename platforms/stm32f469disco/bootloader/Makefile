@@ -107,6 +107,10 @@ ifneq ($(READ_PROTECTION),)
 C_DEFS += READ_PROTECTION=$(READ_PROTECTION)
 endif
 
+ifneq ($(WRITE_PROTECTION),)
+C_DEFS += WRITE_PROTECTION=$(WRITE_PROTECTION)
+endif
+
 # ASM sources
 ASM_SOURCES = $(shell find $(LOC_ROOT) -name *.s)
 

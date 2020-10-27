@@ -96,6 +96,8 @@ WEAK bool blsys_flash_write_protect(bl_addr_t addr, size_t size, bool enable) {
 
 WEAK bool blsys_flash_read_protect(int level) { return true; }
 
+WEAK int blsys_flash_get_read_protection_level(void) { return -1; };
+
 WEAK uint32_t blsys_media_devices(void) { return 1U; }
 
 WEAK const char* blsys_media_name(uint32_t device_idx) {

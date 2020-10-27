@@ -61,3 +61,7 @@ _bl_copy2_start = ORIGIN(FLASH_BL2);
 _bl_image_base = _bl_copy1_start;
 /* Mailbox used to pass parameters to the Bootloader */
 _startup_mailbox = ORIGIN(RAM_MAILBOX);
+/* Start of the Start-up code */
+_startup_code_start = ORIGIN(FLASH_STARTUP);
+/* Size of the Start-up code */
+_startup_code_size = LENGTH(FLASH_STARTUP) + LENGTH(FLASH_STARTUP_VER);

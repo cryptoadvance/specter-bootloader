@@ -43,6 +43,10 @@
 #define ERROR_LED LED_RED
 /// Text with request to rebbot the device
 #define REBOOT_PROMPT "Press power button to reboot"
+/// First sector in the Bank 1
+#define FLASH_BANK2_FIRST_SECTOR 12U
+/// Selection of protection mode: 0 - write protection, 1 - PCROP
+#define FLASH_SPRMOD_BIT (1U << 15)
 
 /// GPIO port of nPWR_BUTTON line
 #define NPWR_BUTTON_GPIO_PORT ((GPIO_TypeDef*)GPIOB)
@@ -73,6 +77,18 @@ typedef struct {
   bl_addr_t sector_size;   ///< Size of the sector
   uint32_t sector_count;   ///< Number of sectors having the same size
 } flash_layout_t;
+
+/// Area in the flash memory defined by address and size
+typedef struct flash_area_t {
+  bl_addr_t addr;  ///< Starting address
+  size_t size;     ///< Size in bytes
+} flash_area_t;
+
+/// Iterator over sectors in the flash memory
+typedef flash_area_t flash_sect_iter_t;
+
+/// Map of flash memory sectors
+typedef uint32_t sec_bitmap_t;
 
 /// Layout of flash memory
 // clang-format off
@@ -128,8 +144,8 @@ static bool system_initialized = false;
  *                    ignored if NULL
  * @return            sector index, or -1 if address is incorrect
  */
-int flash_get_sector_info(bl_addr_t addr, bl_addr_t* start_addr,
-                          bl_addr_t* size) {
+static int flash_get_sector_info(bl_addr_t addr, bl_addr_t* start_addr,
+                                 bl_addr_t* size) {
   if (addr >= flash_layout[0].base_address) {
     int sector_index = 0;
     for (int i = 0; i < sizeof(flash_layout) / sizeof(flash_layout[0]); ++i) {
@@ -332,6 +348,13 @@ bool blsys_init(void) {
     BSP_LED_Init(ERROR_LED);
     BSP_LED_Off(ERROR_LED);
     gui_init();
+#ifdef WRITE_PROTECTION
+    // Apply write protection to the Start-up code if needed
+    if (!blsys_flash_write_protect(LV_VALUE(_startup_code_start),
+                                   LV_VALUE(_startup_code_size), true)) {
+      return false;
+    }
+#endif  // WRITE_PROTECTION
     system_initialized = true;
   }
   return true;
@@ -458,6 +481,320 @@ bool blsys_flash_crc32(uint32_t* p_crc, bl_addr_t addr, size_t len) {
     return true;
   }
   return false;
+}
+
+/**
+ * Creates a new iterator over flash memory sectors
+ *
+ * @param addr  starting address
+ * @param size  size of the area in bytes
+ * @return      iterator
+ */
+static inline flash_sect_iter_t flash_sect_iter(bl_addr_t addr, size_t size) {
+  return (flash_sect_iter_t){.addr = addr, .size = size};
+}
+
+/**
+ * Iterates over flash sectors within defined area in flash memory
+ *
+ * Before the first call the variable pinted by *p_iter* must be initialized
+ * with valid starting address and area size by calling flash_sect_iter().
+ *
+ * @param p_iter  pointer to externally stored state variable, updated
+ * @return         iteration result:
+ *                   * >= 0 - number of the next sector
+ *                   * -1 - there are no more sectors or in case of failure
+ */
+static int flash_next_sector(flash_sect_iter_t* p_iter) {
+  if (p_iter && p_iter->size) {
+    bl_addr_t start_addr = 0U;
+    bl_addr_t size = 0U;
+    int sector = flash_get_sector_info(p_iter->addr, &start_addr, &size);
+    if (sector >= 0 && start_addr == p_iter->addr && size <= p_iter->size) {
+      p_iter->addr += size;
+      p_iter->size -= size;
+      return sector;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Returns bit map of flash memory sectors within the given area
+ *
+ * This function returns a bit map of flash sectors where each bit
+ * corresponds to flash sector with the same number.
+ *
+ * @param p_map  pointer to destination structure receiving the sector map
+ * @param addr   starting address
+ * @param size   area size
+ * @return       result:
+ *                 * >= 0 - bit map of flash sectors
+ *                 * -1 - failed
+ */
+static bool flash_sector_bitmap(sec_bitmap_t* p_bitmap, bl_addr_t addr,
+                                size_t size) {
+  if (p_bitmap && size) {
+    sec_bitmap_t bitmap = 0;
+    const int max_sector = sizeof(bitmap) * 8U - 1U;
+
+    flash_sect_iter_t iter = flash_sect_iter(addr, size);
+    int sector = flash_next_sector(&iter);
+    while (sector >= 0) {
+      sec_bitmap_t sect_bit = (sec_bitmap_t)1U << sector;
+      if (sector > max_sector || !IS_OB_WRP_SECTOR(sect_bit)) {
+        return false;
+      }
+      bitmap |= sect_bit;
+      sector = flash_next_sector(&iter);
+    }
+    *p_bitmap = bitmap;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Returns state of write protection as a bitmap of sectors
+ *
+ * In resulting bitmap each bit holds write protection state of corresponding
+ * sector: 0 - disabled, 1 - enabled.
+ *
+ * This function returns false if PCROP is enabled.
+ *
+ * @param p_sect_bitmap  pointer to variable receiving bitmap of sectors
+ * @return               true if successful
+ */
+static bool flash_get_write_protection_state(sec_bitmap_t* p_sect_bitmap) {
+  const uint32_t mask = (1U << FLASH_BANK2_FIRST_SECTOR) - 1U;
+  if (p_sect_bitmap) {
+    FLASH_OBProgramInitTypeDef config = {0};
+    HAL_FLASHEx_OBGetConfig(&config);
+    if ((config.OptionType & OPTIONBYTE_WRP) &&
+        !(config.WRPSector & FLASH_SPRMOD_BIT)) {
+      uint32_t bank1_sectors = (config.WRPSector & mask) ^ mask;
+      uint32_t bank2_sectors = (HAL_FLASHEx_OB_GetBank2WRP() & mask) ^ mask;
+      *p_sect_bitmap = bank1_sectors | ((sec_bitmap_t)bank2_sectors
+                                        << FLASH_BANK2_FIRST_SECTOR);
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Enables or disables write protection of a flash memory bank
+ *
+ * In the bitmap of sectors each bit corresponds to a flash memory sector, e.g.
+ * bit 0 corresponds to sector 0.
+ *
+ * @param sect_bitmap  bitmap of sectors that needs to be re-configured
+ * @param enable       protection state:
+ *                       * true - write protection is enabled
+ *                       * false - write protection is disabled
+ * @return             true if successful
+ */
+static bool flash_set_write_protection_state(sec_bitmap_t sect_bitmap,
+                                             bool enable) {
+  const sec_bitmap_t mask = (1U << FLASH_BANK2_FIRST_SECTOR) - 1U;
+
+  // Unlock access to flash memory and option bytes
+  bool ok = (HAL_OK == HAL_FLASH_Unlock());
+  ok = ok && (HAL_OK == HAL_FLASH_OB_Unlock());
+
+  // Program Bank 2
+  FLASH_OBProgramInitTypeDef config = {
+      .OptionType = OPTIONBYTE_WRP,
+      .WRPState = enable ? OB_WRPSTATE_ENABLE : OB_WRPSTATE_DISABLE,
+      .WRPSector = sect_bitmap & (mask << FLASH_BANK2_FIRST_SECTOR),
+      .Banks = FLASH_BANK_2};
+  ok = ok && (HAL_OK == HAL_FLASHEx_OBProgram(&config));
+
+  // Program Bank 1
+  config = (FLASH_OBProgramInitTypeDef){
+      .OptionType = OPTIONBYTE_WRP,
+      .WRPState = enable ? OB_WRPSTATE_ENABLE : OB_WRPSTATE_DISABLE,
+      .WRPSector = sect_bitmap & mask,
+      .Banks = FLASH_BANK_1};
+  ok = ok && (HAL_OK == HAL_FLASHEx_OBProgram(&config));
+
+  // Request reloading of option bytes
+  ok = ok && (HAL_OK == HAL_FLASH_OB_Launch());
+
+  // Lock access to flash memory and option bytes
+  ok = ok && (HAL_OK == HAL_FLASH_OB_Lock());
+  ok = ok && (HAL_OK == HAL_FLASH_Lock());
+  return ok;
+}
+
+/**
+ * Enables or disables write protection for all sectors of the flash memory
+ *
+ * @param enable       protection state:
+ *                       * true - write protection is enabled
+ *                       * false - write protection is disabled
+ * @return             true if successful
+ */
+static bool flash_set_write_protection_state_global(bool enable) {
+  // Unlock access to flash memory and option bytes
+  bool ok = (HAL_OK == HAL_FLASH_Unlock());
+  ok = ok && (HAL_OK == HAL_FLASH_OB_Unlock());
+
+  // Program both Banks
+  FLASH_OBProgramInitTypeDef config = {
+      .OptionType = OPTIONBYTE_WRP,
+      .WRPState = enable ? OB_WRPSTATE_ENABLE : OB_WRPSTATE_DISABLE,
+      .WRPSector = OB_WRP_SECTOR_All,
+      .Banks = FLASH_BANK_BOTH};
+  ok = ok && (HAL_OK == HAL_FLASHEx_OBProgram(&config));
+
+  // Request reloading of option bytes
+  ok = ok && (HAL_OK == HAL_FLASH_OB_Launch());
+
+  // Lock access to flash memory and option bytes
+  ok = ok && (HAL_OK == HAL_FLASH_OB_Lock());
+  ok = ok && (HAL_OK == HAL_FLASH_Lock());
+  return ok;
+}
+
+/**
+ * Returns RDP (read protection) level
+ *
+ * @param p_rdp_level  pointer to variable receiving RDP level, a value of
+ *                     @ref FLASHEx_Option_Bytes_Read_Protection
+ * @return             true if successful
+ */
+bool flash_get_rdp_level(uint32_t* p_rdp_level) {
+  if (p_rdp_level) {
+    FLASH_OBProgramInitTypeDef config = {0};
+    HAL_FLASHEx_OBGetConfig(&config);
+    if ((config.OptionType & OPTIONBYTE_RDP)) {
+      *p_rdp_level = config.RDPLevel;
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Programs read protection level
+ *
+ * WARNING: Programming Level 2 (OB_RDP_LEVEL_2) is irreversible!
+ *
+ * @param rdp_level  requited read protection level, a value of
+ *                   @ref FLASHEx_Option_Bytes_Read_Protection
+ * @return           true if successful
+ */
+bool flash_set_rdp_level(uint32_t rdp_level) {
+  if (IS_OB_RDP_LEVEL(rdp_level)) {
+    // Unlock access to flash memory and option bytes
+    bool ok = (HAL_OK == HAL_FLASH_Unlock());
+    ok = ok && (HAL_OK == HAL_FLASH_OB_Unlock());
+
+    // Program option byte(s)
+    FLASH_OBProgramInitTypeDef config = {.OptionType = OPTIONBYTE_RDP,
+                                         .RDPLevel = rdp_level};
+    ok = ok && (HAL_OK == HAL_FLASHEx_OBProgram(&config));
+
+    // Request reloading of option bytes
+    ok = ok && (HAL_OK == HAL_FLASH_OB_Launch());
+
+    // Lock access to flash memory and option bytes
+    ok = ok && (HAL_OK == HAL_FLASH_OB_Lock());
+    ok = ok && (HAL_OK == HAL_FLASH_Lock());
+    return ok;
+  }
+  return false;
+}
+
+bool blsys_flash_write_protect(bl_addr_t addr, size_t size, bool enable) {
+  sec_bitmap_t sect_map = 0U;
+  if (flash_sector_bitmap(&sect_map, addr, size)) {
+    uint32_t rdp_level = OB_RDP_LEVEL_0;
+    sec_bitmap_t curr_state = 0U;
+    bool ok = flash_get_rdp_level(&rdp_level);
+    ok = ok && flash_get_write_protection_state(&curr_state);
+    // We don't try to modify write protection bits in RDP Level 2
+    if (ok && rdp_level != OB_RDP_LEVEL_2) {
+      sec_bitmap_t new_state = curr_state;
+      if (enable) {
+        new_state |= sect_map;
+      } else {
+        new_state &= ~sect_map;
+      }
+      // Check if we need to re-program bits for Bank 1
+      if (new_state != curr_state) {
+        ok = ok && flash_set_write_protection_state(sect_map, enable);
+        // Verify that configuration is programmed successfully
+        ok = ok && flash_get_write_protection_state(&curr_state);
+        ok = ok && curr_state == new_state;
+      }
+#ifdef DEBUG
+      bl_keep_variable(&sect_map);
+      bl_keep_variable(&rdp_level);
+      bl_keep_variable(&new_state);
+#endif
+    }
+    return ok;
+  }
+  return false;
+}
+
+bool blsys_flash_read_protect(int level_) {
+  uint32_t new_rdp_level = OB_RDP_LEVEL_0;
+  switch (level_) {
+    case 1:
+      new_rdp_level = OB_RDP_LEVEL_1;
+      break;
+#if 0  // RDP Level 2 is intentionally disabled. If misused may brick your
+       // board!
+    case 2:
+      new_rdp_level = OB_RDP_LEVEL_2;
+      break;
+#endif
+    default:
+      return false;
+  }
+
+  uint32_t curr_rdp_level = OB_RDP_LEVEL_0;
+  bool ok = flash_get_rdp_level(&curr_rdp_level);
+  if (curr_rdp_level != new_rdp_level) {
+    if (OB_RDP_LEVEL_2 == new_rdp_level) {
+      // Remove write protection from all the sectors because option bytes
+      // become unmodifiable after enabling RDP Level 2.
+      ok = ok && flash_set_write_protection_state_global(false);
+#ifdef WRITE_PROTECTION
+      // Re-apply write protection to the Start-up code
+      ok = ok && blsys_flash_write_protect(LV_VALUE(_startup_code_start),
+                                           LV_VALUE(_startup_code_size), true);
+#endif  // WRITE_PROTECTION
+    }
+    ok = ok && flash_set_rdp_level(new_rdp_level);
+    ok = ok && flash_get_rdp_level(&curr_rdp_level);
+    ok = ok && curr_rdp_level == new_rdp_level;
+    if (ok) {
+      // Reboot the MCU if successful
+      HAL_NVIC_SystemReset();
+    }
+  }
+  return ok;
+}
+
+int blsys_flash_get_read_protection_level(void) {
+  uint32_t curr_rdp_level = OB_RDP_LEVEL_0;
+  if (flash_get_rdp_level(&curr_rdp_level)) {
+    switch (curr_rdp_level) {
+      case OB_RDP_LEVEL_0:
+        return 0;
+      case OB_RDP_LEVEL_1:
+        return 1;
+      case OB_RDP_LEVEL_2:
+        return 2;
+      default:
+        return -1;
+    }
+  }
+  return -1;
 }
 
 uint32_t blsys_media_devices(void) { return media_n_devices; }

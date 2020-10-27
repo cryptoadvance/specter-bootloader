@@ -203,6 +203,13 @@ bool blsys_flash_write_protect(bl_addr_t addr, size_t size, bool enable);
 bool blsys_flash_read_protect(int level);
 
 /**
+ * Returns current level of the read protection for the whole chip
+ *
+ * @return  protection level (platform dependent), or -1 if not available
+ */
+int blsys_flash_get_read_protection_level(void);
+
+/**
  * Returns a number of media devices searched for upgrade files
  *
  * The bootloader uses returned value to scan all available devices sequentially

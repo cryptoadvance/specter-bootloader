@@ -51,5 +51,9 @@ LV_EXTERN char _bl_copy2_start;
 LV_EXTERN char _bl_image_base;
 /// Mailbox used to pass parameters to the Bootloader
 LV_EXTERN char _startup_mailbox;
+/// Start of the Start-up code
+LV_EXTERN char _startup_code_start;
+/// Size of the Start-up code
+LV_EXTERN char _startup_code_size;
 
 #endif  // LINKER_VARS_H_INCLUDED

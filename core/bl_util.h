@@ -118,11 +118,22 @@ static inline bool bl_streq(const char* stra, const char* strb) {
  * destination buffer.
  *
  * @param dst       destination buffer containing 1-st null-terminated string
- * @param dst_size  size of destination buffer in bytes
+ * @param dst_size  size of the destination buffer in bytes
  * @param src       buffer containing 2-nd null-terminated string
  * @return          true if successful
  */
 bool bl_strcat_checked(char *dst, size_t dst_size, const char *src);
+
+/**
+ * Appends formatted data to a string
+ *
+ * @param dst_buf   destination buffer containing a null-terminated string
+ * @param dst_size  size of the destination buffer in bytes
+ * @param format    null-terminated format string
+ * @param ...       list of arguments
+ * @return          true if successful
+ */
+bool bl_format_append(char* dst_buf, size_t dst_size, const char* format, ...);
 
 /**
  * Sets callback function which is called to report progress of operations

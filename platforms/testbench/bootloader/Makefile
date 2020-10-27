@@ -68,6 +68,10 @@ ifneq ($(READ_PROTECTION),)
 C_DEFS += READ_PROTECTION=$(READ_PROTECTION)
 endif
 
+ifneq ($(WRITE_PROTECTION),)
+C_DEFS += WRITE_PROTECTION=$(WRITE_PROTECTION)
+endif
+
 OBJS := $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES)))
 

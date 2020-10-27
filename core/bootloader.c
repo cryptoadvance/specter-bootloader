@@ -1087,9 +1087,30 @@ static bool make_upgrade_report(char* dst_buf, size_t dst_size,
     // Report Main Firmware status
     res = make_section_report(p_dst, rm_size, "Firmware", &p_md->main_section,
                               prev_ver.main_fw_ver);
-    if (res >= 0) {
-      return true;
+    if (res < 0) {
+      return false;
     }
+
+    // Report state of write protection
+    static const char* wrp_string =
+#ifdef WRITE_PROTECTION
+        "\n\nWrite protection: enabled";
+#else
+        "\n\nWrite protection: disabled";
+#endif
+    bool ok = bl_format_append(p_dst, rm_size, wrp_string);
+
+    // Report of read protection
+    ok = ok && bl_format_append(p_dst, rm_size, "\nRead protection:  ");
+    int rdp_level = blsys_flash_get_read_protection_level();
+    if (0 == rdp_level) {
+      ok = ok && bl_format_append(p_dst, rm_size, "disabled");
+    } else if (rdp_level > 0) {
+      ok = ok && bl_format_append(p_dst, rm_size, "Level %i", rdp_level);
+    } else {
+      ok = ok && bl_format_append(p_dst, rm_size, "unavailable");
+    }
+    return ok;
   }
   return false;
 }
@@ -1188,11 +1209,13 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
     fatal_error("Error creating integrity check records");
   }
 
+#ifdef WRITE_PROTECTION
   // Restore write protection for updated sections of the flash memory
   if (!set_write_protection_state(&bl_ctx.file_metadata, p_args->loaded_from,
                                   true)) {
     fatal_error("Error while applying write protection");
   }
+#endif  // WRITE_PROTECTION
 
   // Notify the user that upgrade is complete
   if (!make_upgrade_report(bl_ctx.format_buf, sizeof(bl_ctx.format_buf),
@@ -1352,7 +1375,7 @@ static bl_status_t bootloader_run_initialized(const bl_args_t* p_args,
 #ifdef READ_PROTECTION
   int rdp_level = (int)(READ_PROTECTION);
   if (!blsys_flash_read_protect(rdp_level)) {
-    fatal_error("Cannot set read protection level %i", rdp_level);
+    fatal_error("Cannot set read protection to 'Level %i'", rdp_level);
   }
 #endif
 
