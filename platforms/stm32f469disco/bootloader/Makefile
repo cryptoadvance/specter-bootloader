@@ -95,14 +95,21 @@ C_INCLUDES =  \
 
 # C defines
 C_DEFS =  \
--DPLATFORM_ID=\"$(TARGET_PLATFORM)\" \
--DUSE_HAL_DRIVER \
--DSTM32F469xx \
--DHAVE_CONFIG_H \
--DSECP256K1_BUILD \
--D__BYTE_ORDER=1234 \
--DCRC32_USE_LOOKUP_TABLE_SLICING_BY_8 \
--Wno-unused-function
+PLATFORM_ID=\"$(TARGET_PLATFORM)\" \
+USE_HAL_DRIVER \
+STM32F469xx \
+HAVE_CONFIG_H \
+SECP256K1_BUILD \
+__BYTE_ORDER=1234 \
+CRC32_USE_LOOKUP_TABLE_SLICING_BY_8 \
+
+ifneq ($(READ_PROTECTION),)
+C_DEFS += READ_PROTECTION=$(READ_PROTECTION)
+endif
+
+ifneq ($(WRITE_PROTECTION),)
+C_DEFS += WRITE_PROTECTION=$(WRITE_PROTECTION)
+endif
 
 # ASM sources
 ASM_SOURCES = $(shell find $(LOC_ROOT) -name *.s)
@@ -117,8 +124,9 @@ AS_DEFS =
 # binaries
 #######################################
 PREFIX = arm-none-eabi-
-# The gcc compiler bin path can be either defined in make command via GCC_PATH variable (> make GCC_PATH=xxx)
-# either it can be added to the PATH environment variable.
+# The gcc compiler bin path can be either defined in make command via GCC_PATH
+# variable (> make GCC_PATH=xxx) either it can be added to the PATH environment
+# variable.
 ifdef GCC_PATH
 CC = $(GCC_PATH)/$(PREFIX)gcc
 AS = $(GCC_PATH)/$(PREFIX)gcc -x assembler-with-cpp
@@ -151,9 +159,11 @@ FLOAT-ABI = -mfloat-abi=hard
 MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
 
 # compile gcc flags
-ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
+ASFLAGS = $(MCU) $(addprefix -D,$(AS_DEFS)) $(AS_INCLUDES) $(OPT) \
+-Wall -fdata-sections -ffunction-sections
 
-CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
+CFLAGS = $(MCU) $(addprefix -D,$(C_DEFS)) $(C_INCLUDES) $(OPT) \
+-Wall -Wno-unused-function -fdata-sections -ffunction-sections
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2 -DDEBUG=1
@@ -177,7 +187,8 @@ LDSCRIPTS = $(addprefix -T,$(LDSCRIPT_LST))
 # libraries
 LIBS = -lc -lm -lnosys
 LIBDIR =
-LDFLAGS = $(MCU) -specs=nano.specs $(LDSCRIPTS) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections -N
+LDFLAGS = $(MCU) -specs=nano.specs $(LDSCRIPTS) $(LIBDIR) $(LIBS) \
+-Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections -N
 
 # default action: build all
 all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex

@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include "bl_util.h"
 
 /// Number of decimal digits in the XML version tag
@@ -47,14 +48,34 @@ bool bl_memveq(const void* ptr, int value, size_t num) {
   return false;
 }
 
-bool bl_strcat_checked(char *dst, size_t dst_size, const char *src) {
-  if(dst && src && dst_size > 1U) {
+bool bl_strcat_checked(char* dst, size_t dst_size, const char* src) {
+  if (dst && src && dst_size > 1U) {
     size_t dst_len = strlen(dst);
     size_t src_len = strlen(src);
-    if(dst_len + src_len + 1U <= dst_size) {
+    if (dst_len + src_len + 1U <= dst_size) {
       // Copy src string after dst string including terminating null-character
       memcpy(dst + dst_len, src, src_len + 1U);
       return true;
+    }
+  }
+  return false;
+}
+
+// TODO: test
+bool bl_format_append(char* dst_buf, size_t dst_size, const char* format, ...) {
+  if (dst_buf && dst_size && format) {
+    size_t str_len = strlen(dst_buf);
+    if (str_len < dst_size) {
+      va_list args;
+      va_start(args, format);
+      int out_len =
+          vsnprintf(dst_buf + str_len, dst_size - str_len, format, args);
+      va_end(args);
+      if(out_len > 0) {
+        return true;
+      }
+      // Restore original string's termination before returning false
+      dst_buf[str_len] = '\0';
     }
   }
   return false;
