@@ -12,7 +12,13 @@ _BL_ICR_MAGIC = 0x47544E49
 # Structure revision
 _STRUCT_REV = 1
 # Size of integrity check record
-BL_ICR_SIZE = 32
+_BL_ICR_SIZE = 32
+# Size of version check record
+_BL_VCR_SIZE = 32
+# Total overhead from all metadata stored together with firmware
+BL_FW_SECT_OVERHEAD = (_BL_ICR_SIZE+_BL_VCR_SIZE)
+# Offset of ICR record from the end of firmware section
+BL_ICR_OFFSET_FROM_END = (_BL_ICR_SIZE+_BL_VCR_SIZE)
 
 
 class _bl_icr_sect_t(LittleEndianStructure):
