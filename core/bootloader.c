@@ -587,7 +587,7 @@ static bool check_sect_compatibility(const bl_section_t* p_hdr,
       // Check parameters and attributes
       return bl_streq(platform, blsys_platform_id()) &&
              base_addr == sect_base &&
-             p_hdr->pl_size + BL_ICR_SIZE <= sect_size;
+             bl_icr_check_sect_size(sect_size, p_hdr->pl_size);
     }
   }
   return false;
