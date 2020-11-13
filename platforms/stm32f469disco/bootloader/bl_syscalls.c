@@ -112,6 +112,7 @@ static const flash_layout_t flash_layout[] = {
 const bl_addr_t bl_flash_map[bl_flash_map_nitems] = {
   [bl_flash_firmware_base]         = LV_VALUE(_main_firmware_start),
   [bl_flash_firmware_size]         = LV_VALUE(_main_firmware_size),
+  [bl_flash_firmware_part1_size]   = LV_VALUE(_main_firmware_part1_size),
   [bl_flash_bootloader_image_base] = LV_VALUE(_bl_image_base),
   [bl_flash_bootloader_copy1_base] = LV_VALUE(_bl_copy1_start),
   [bl_flash_bootloader_copy2_base] = LV_VALUE(_bl_copy2_start),

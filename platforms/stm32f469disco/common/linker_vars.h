@@ -41,6 +41,8 @@ LV_EXTERN char _ram_code_start;
 LV_EXTERN char _main_firmware_start;
 /// Size of the Main Firmware
 LV_EXTERN char _main_firmware_size;
+/// Size of the Main Firmware's 1-st part
+LV_EXTERN char _main_firmware_part1_size;
 /// Size of flash memory sector where the Bootloader is stored
 LV_EXTERN char _bl_sect_size;
 /// Start of the Bootloader copy 1, stored in the flash memory

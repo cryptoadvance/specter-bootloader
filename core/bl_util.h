@@ -122,7 +122,7 @@ static inline bool bl_streq(const char* stra, const char* strb) {
  * @param src       buffer containing 2-nd null-terminated string
  * @return          true if successful
  */
-bool bl_strcat_checked(char *dst, size_t dst_size, const char *src);
+bool bl_strcat_checked(char* dst, size_t dst_size, const char* src);
 
 /**
  * Appends formatted data to a string
@@ -224,6 +224,29 @@ static inline bool bl_version_is_rc(uint32_t version) {
  */
 static inline void bl_keep_variable(volatile const void* ptr) {
   (void)*(volatile const char*)ptr;
+}
+
+/**
+ * Returns maximum of two uint32_t numbers
+ *
+ * @param a  1-st number
+ * @param b  2-nd number
+ * @return   maximum of (a,b)
+ */
+static inline uint32_t bl_max_u32(uint32_t a, uint32_t b) {
+  return (a > b) ? a : b;
+}
+
+/**
+ * Returns maximum of three uint32_t numbers
+ *
+ * @param a  1-st number
+ * @param b  2-nd number
+ * @param c  3-rd number
+ * @return   maximum of (a,b,c)
+ */
+static inline uint32_t bl_max3_u32(uint32_t a, uint32_t b, uint32_t c) {
+  return bl_max_u32(bl_max_u32(a, b), c);
 }
 
 #endif  // BL_UTIL_H_INCLUDED
