@@ -20,6 +20,7 @@
 const bl_addr_t bl_flash_map[bl_flash_map_nitems] = {
   [bl_flash_firmware_base]          = 0x08020000U,
   [bl_flash_firmware_size]          = 1664U * 1024U,
+  [bl_flash_firmware_part1_size]    = 128U * 1024U,
   [bl_flash_bootloader_image_base]  = 0x081C0000U,
   [bl_flash_bootloader_copy1_base]  = 0x081C0000U,
   [bl_flash_bootloader_copy2_base]  = 0x081E0000U,
@@ -74,7 +75,7 @@ static bool check_flash_area(bl_addr_t addr, size_t size) {
 bool blsys_flash_erase(bl_addr_t addr, size_t size) {
   if (flash_emu_buf && check_flash_area(addr, size)) {
     size_t offset = addr - flash_emu_base;
-    memset(flash_emu_buf + offset, 0, size);
+    memset(flash_emu_buf + offset, 0xFFU, size);
     return true;
   }
   return false;
@@ -92,6 +93,12 @@ bool blsys_flash_read(bl_addr_t addr, void* buf, size_t len) {
 bool blsys_flash_write(bl_addr_t addr, const void* buf, size_t len) {
   if (flash_emu_buf && buf && check_flash_area(addr, len)) {
     size_t offset = addr - flash_emu_base;
+    // Check if flash area is erased
+    for(size_t idx = offset; idx < offset + len; ++idx) {
+      if(flash_emu_buf[idx] != 0xFFU) {
+        return false;
+      }
+    }
     memcpy(flash_emu_buf + offset, buf, len);
     return true;
   }
