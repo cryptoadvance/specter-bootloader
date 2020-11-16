@@ -47,8 +47,9 @@
 
 /// Flash memory map items
 typedef struct flash_map_t {
-  bl_addr_t firmware_base;          ///< Base address of [main] Firmware
-  bl_addr_t firmware_size;          ///< Size reserved for [main] Firmware
+  bl_addr_t firmware_base;          ///< Base address of the Main Firmware
+  bl_addr_t firmware_size;          ///< Size reserved for the Main Firmware
+  bl_addr_t firmware_part1_size;    ///< Size of Main Firmware's 1-st part
   bl_addr_t bootloader_image_base;  ///< Base address of Bootloader in HEX file
   bl_addr_t bootloader_copy1_base;  ///< Base address of Bootloader copy 1
   bl_addr_t bootloader_copy2_base;  ///< Base address of Bootloader copy 2
@@ -295,13 +296,16 @@ static bool sanity_check(void) {
 static inline bool get_flash_memory_map(flash_map_t* p_map) {
   if (p_map) {
     memset(p_map, 0, sizeof(flash_map_t));
-    return blsys_flash_map_get_items(
-        6, bl_flash_firmware_base, &p_map->firmware_base,
+    bool ok = blsys_flash_map_get_items(
+        7, bl_flash_firmware_base, &p_map->firmware_base,
         bl_flash_firmware_size, &p_map->firmware_size,
+        bl_flash_firmware_part1_size, &p_map->firmware_part1_size,
         bl_flash_bootloader_image_base, &p_map->bootloader_image_base,
         bl_flash_bootloader_copy1_base, &p_map->bootloader_copy1_base,
         bl_flash_bootloader_copy2_base, &p_map->bootloader_copy2_base,
         bl_flash_bootloader_size, &p_map->bootloader_size);
+    ok = ok && (p_map->firmware_part1_size < p_map->firmware_size);
+    return ok;
   }
   return false;
 }
@@ -587,7 +591,7 @@ static bool check_sect_compatibility(const bl_section_t* p_hdr,
       // Check parameters and attributes
       return bl_streq(platform, blsys_platform_id()) &&
              base_addr == sect_base &&
-             p_hdr->pl_size + BL_ICR_SIZE <= sect_size;
+             bl_icr_check_sect_size(sect_size, p_hdr->pl_size);
     }
   }
   return false;
@@ -656,16 +660,25 @@ static version_check_res_t check_version(uint32_t new_ver, uint32_t curr_ver,
 static version_check_res_t check_versions(const file_metadata_t* p_md,
                                           version_info_t curr, uint32_t flags) {
   if (p_md) {
+    // Check version of the Bootloader
     version_check_res_t check_bl =
         p_md->boot_section.loaded
             ? check_version(p_md->boot_section.header.pl_ver,
                             curr.bootloader_ver, flags)
             : version_same;
 
+    // Get saved version from version check record. It stores the latest
+    // version even if the Main firmware is erased.
+    uint32_t saved_ver =
+        bl_vcr_get_version(bl_ctx.flash_map.firmware_base,
+                           bl_ctx.flash_map.firmware_size, bl_vcr_any);
+    // Chose the latest version number of all sources: ICR & 2x VCR.
+    uint32_t latest_ver = bl_max_u32(curr.main_fw_ver, saved_ver);
+    // Check version of the Main Firmware from file against the latest version
+    // ever programmed in the device.
     version_check_res_t check_main =
         p_md->main_section.loaded
-            ? check_version(p_md->main_section.header.pl_ver, curr.main_fw_ver,
-                            flags)
+            ? check_version(p_md->main_section.header.pl_ver, latest_ver, flags)
             : version_same;
 
     // Return check result with the higher rank (severity in case of error)
@@ -738,6 +751,41 @@ static bool verify_payload_sections(bl_file_t file,
 }
 
 /**
+ * Erases the Main Firmware area of the flash memory preserving the VCR
+ *
+ * @return  true if successful
+ */
+static bool erase_main_firmware_area(void) {
+  bl_addr_t fw_addr = bl_ctx.flash_map.firmware_base;
+  bl_addr_t fw_size = bl_ctx.flash_map.firmware_size;
+  bl_addr_t part1_size = bl_ctx.flash_map.firmware_part1_size;
+
+  // Chose the latest version number of all sources: ICR & 2x VCR
+  uint32_t icr_ver = BL_VERSION_NA;
+  (void)bl_icr_get_version(fw_addr, fw_size, &icr_ver);
+  uint32_t startvcr_ver = bl_vcr_get_version(fw_addr, fw_size, bl_vcr_starting);
+  uint32_t endvcr_ver = bl_vcr_get_version(fw_addr, fw_size, bl_vcr_ending);
+  uint32_t latest_ver = bl_max3_u32(icr_ver, startvcr_ver, endvcr_ver);
+
+  bool ok = (fw_size > part1_size);
+  // (1) Check if we have VCR at the beginning of the section
+  if (BL_VERSION_NA == startvcr_ver) {  // No VCR at the beginning
+    // (2) Erase part 1
+    ok = ok && blsys_flash_erase(fw_addr, part1_size);
+    // (3) Create VCR at the beginning of the section
+    ok = ok && bl_vcr_create(fw_addr, fw_size, latest_ver, bl_vcr_starting);
+  }
+  // (4) Erase part 2
+  ok = ok && blsys_flash_erase(fw_addr + part1_size, fw_size - part1_size);
+  // (5) Create VCR at the end of the section
+  ok = ok && bl_vcr_create(fw_addr, fw_size, latest_ver, bl_vcr_ending);
+  // (6) Erase part 1
+  ok = ok && blsys_flash_erase(fw_addr, part1_size);
+
+  return ok;
+}
+
+/**
  * Erases sections of the flash memory preparing for an upgrade
  *
  * @param p_md     pointer to upgrade file metadata
@@ -756,8 +804,7 @@ static bool erase_flash(const file_metadata_t* p_md, bl_addr_t bl_addr) {
     }
     if (p_md->main_section.loaded) {
       bl_report_progress(stage_erase_flash | substage_main, 1U, 0U);
-      if (!blsys_flash_erase(bl_ctx.flash_map.firmware_base,
-                             bl_ctx.flash_map.firmware_size)) {
+      if (!erase_main_firmware_area()) {
         return false;
       }
       bl_report_progress(stage_erase_flash | substage_main, 1U, 1U);

@@ -82,11 +82,11 @@ def combine(out_file, startup_hex, bootloader_hex, firmware_hex, bin_out):
 
     # Write resulting firmware in HEX or binary format
     if bin_out:
-      file_obj = open(out_file, "wb")
-      file_obj.write(intelhex_to_bytes(out_ih))
-      file_obj.close()
+        file_obj = open(out_file, "wb")
+        file_obj.write(intelhex_to_bytes(out_ih))
+        file_obj.close()
     else:
-      out_ih.write_hex_file(out_file)
+        out_ih.write_hex_file(out_file)
 
 
 def intelhex_to_bytes(ih_obj):
@@ -123,11 +123,12 @@ def intelhex_add_icr(ih_obj, storage_size):
         raise TypeError("Storage object should be IntelHex")
 
     data_len = ih_obj.maxaddr() - ih_obj.minaddr() + 1
-    if data_len > MAX_PAYLOAD_SIZE or data_len + BL_ICR_SIZE > storage_size:
+    if (data_len > MAX_PAYLOAD_SIZE or
+            data_len + BL_FW_SECT_OVERHEAD > storage_size):
         raise click.ClickException(f"Error while parsing '{hex_file.name}'")
 
     icr = icr_create(intelhex_to_bytes(ih_obj))
-    addr = ih_obj.minaddr() + storage_size - BL_ICR_SIZE
+    addr = ih_obj.minaddr() + storage_size - BL_ICR_OFFSET_FROM_END
     intelhex_add_data(ih_obj, addr, icr)
 
 

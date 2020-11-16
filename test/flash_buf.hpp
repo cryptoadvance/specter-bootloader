@@ -48,12 +48,19 @@ class FlashBuf {
   }
 
   inline operator uint8_t*() const { return flash_emu_buf; }
-  inline uint8_t& operator[](int index) { return flash_emu_buf[index]; }
+  inline uint8_t& operator[](int index) {
+    if (index >= 0 && index < flash_emu_size) {
+      return flash_emu_buf[index];
+    }
+    INFO("ERROR: indexing outside flash emulation buffer");
+    REQUIRE(false);  // Abort test
+    return flash_emu_buf[0]; // Formal
+  }
   inline bl_addr_t base() { return flash_emu_base; }
   inline bl_addr_t size() { return flash_emu_size; }
   inline bl_addr_t pl_size() { return pl_size_; }
 
-private:
+ private:
   uint32_t pl_size_;
 };
 

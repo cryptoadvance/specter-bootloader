@@ -14,7 +14,8 @@
     - [Firmware conversion from an Intel HEX file](#firmware-conversion-from-an-intel-hex-file)
     - [Embedded version tag](#embedded-version-tag)
     - [Embedded memory map](#embedded-memory-map)
-    - [Integrity check record format](#integrity-check-record-format)
+    - [Integrity check record](#integrity-check-record)
+    - [Version check record](#version-check-record)
   - [Internal Flash memory map](#internal-flash-memory-map)
 
 ## Feature Summary
@@ -77,7 +78,7 @@ In case any of the steps 1-5 fails, the Bootloader unmounts the SD card and proc
     5. The key referenced by fingerprint was not encountered in the RAM table before. Otherwise, remove the duplicating signature from the RAM table.
     6. The number of remaining signatures is not less than a predefined minimum signature threshold (a separate threshold for the Firmware and for the Bootloader).
 8. Verify the integrity of all payload sections using the CRC algorithm.
-9. Perform partial erase of internal flash memory as needed to store the new firmware, excluding sectors occupied by the currently executed copy of the Bootloader, the Start-up code, internal file systems and the key storage.
+9. Perform partial erase of internal flash memory as needed to store the new firmware, excluding sectors occupied by the currently executed copy of the Bootloader, the Start-up code, internal file systems and the key storage. A version check record is created to protect from the downgrade of the Main Firmware storing the latest version ever programmed in the device.
 10. Copy payload sections from an upgrade file file to internal flash memory.
 11. Perform verification of signature(s) using a prepared signature table in RAM. Verified data includes:
     7. Section headers in RAM (not from SD card)
@@ -88,7 +89,7 @@ In case any of the steps 1-5 fails, the Bootloader unmounts the SD card and proc
 ### Normal boot procedure
 
 1. Ensure that the integrity check record for the Main Firmware exists and not corrupted by verifying its CRC. The absence of this record means that the device is blank or signature verification has failed. In this case, the Bootloader enters an endless loop with a specific LED and LCD indication.
-2. Verify the integrity of the Firmware using CRC stored in the integrity check record. In case of failure, erase the integrity check record and reboot.
+2. Verify the integrity of the Firmware using CRC stored in the integrity check record. In case of failure, indicate error and/or reboot.
 3. Remap interrupt vectors and branch to the entry point of the Main Firmware (its reset vector).
 
 ## Implementation details
@@ -262,9 +263,9 @@ typedef struct {
 } bl_memmap_rec_t;
 ```
 
-### Integrity check record format
+### Integrity check record
 
-An integrity check record contains the size and CRC values for at most two sections: the Main section and the Auxiliary section. In the current version Auxiliary section is reserved and its parameters are set to 0x00000000.
+An integrity check record (ICR) contains the size and CRC values for at most two sections: the Main section and the Auxiliary section. In the current version Auxiliary section is reserved and its parameters are set to 0x00000000.
 
 ```c
 // One section of integrity check record
@@ -276,7 +277,7 @@ typedef struct {
 // Integrity check record
 //
 // This structure has a fixed size of 32 bytes. All 32-bit words are stored in
-// little-endian format. CRC is calculated over first 28 bytes byte of this
+// little-endian format. CRC is calculated over first 28 bytes of this
 // structure.
 typedef struct {
   uint32_t magic;          // Magic word, BL_ICR_MAGIC ("INTG", 0x47544E49 LE)
@@ -287,6 +288,52 @@ typedef struct {
   uint32_t struct_crc;     // CRC of this structure using LE representation
 } bl_integrity_check_rec_t;
 ```
+
+An integrity check record occupying exactly 32 bytes is stored starting from offset -64 relating to the end of a section. For example, if the section has size 131072 bytes (128k), an integrity check record is stored in bytes 131008-131039.
+
+### Version check record
+
+A version check record (VCR) contains the latest version that was ever programmed in the device for robust downgrade protection. This record is created and updated when the Main Firmware section of the flash memory is erased. To avoid data loss due to unexpected reset or power interruption, this process is implemented in the following steps:
+
+1. If there is a VCR at the beginning of the section, skip steps 2-3
+2. First part of the section is erased
+3. A VCR is created at the beginning of the section
+4. Second part of the section is erased
+5. A VCR is created at the end of the section
+6. First part of the section is erased
+
+The exact size of the section's parts is not important and determined by the platform, assuming that:
+
+* Each part can be erased independently
+* Each part is large enough to contain a VCR
+
+When a VCR is created, it is assigned with the latest known version of the Main Firmware that is determined as the greatest of the following three numbers:
+
+* Payload version from a version check record, if it exists
+* Version from a VCR at the beginning of the section, if it exists
+* Version from a VCR at the end of the section, if it exists
+
+Format of the version check record:
+
+```c
+// Magic string for version check record: 16 bytes with terminating '\0'
+#define BL_VCR_MAGIC "VERSIONCHECKREC"
+
+// Version check record
+//
+// This structure has fixed size of 32 bytes. All 32-bit words are stored in
+// little-endian format. CRC is calculated over first 28 bytes of this
+// structure.
+typedef struct {
+  char magic[sizeof(BL_VCR_MAGIC)];  // Magic string, BL_VCR_MAGIC
+  uint32_t struct_rev;               // Revision of structure format
+  uint32_t pl_ver;                   // Payload version, 0 if not available
+  uint32_t rsv[1];                   // Reserved word
+  uint32_t struct_crc;  // CRC of this structure using LE representation
+} bl_version_check_rec_t;
+```
+
+A version check record occupying exactly 32 bytes is stored starting from offset -32 relating to the end of a section. For example, if the section has size 131072 bytes (128k), an integrity check record is stored in bytes 131040-131071.
 
 ## Internal Flash memory map
 

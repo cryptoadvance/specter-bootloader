@@ -1,6 +1,6 @@
 /**
  * @file       bl_integrity_check.c
- * @brief      Bootloader integrity check functions
+ * @brief      Bootloader integrity and version check functions
  * @author     Mike Tolkachev <contact@miketolkachev.dev>
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
  */
@@ -12,13 +12,6 @@
 #include "bl_integrity_check.h"
 #include "bl_util.h"
 #include "bl_syscalls.h"
-
-/// Magic word, "INTG" in LE
-#define BL_ICR_MAGIC 0x47544E49UL
-/// Structure revision
-#define BL_ICR_STRUCT_REV 1U
-/// Size of the part of integrity check record that is checked using CRC
-#define ICR_CRC_CHECKED_SIZE offsetof(bl_integrity_check_rec_t, struct_crc)
 
 /**
  * Creates integrity check record structure for the Main section
@@ -53,10 +46,9 @@ BL_STATIC_NO_TEST bool icr_struct_create_main(bl_integrity_check_rec_t* p_icr,
 
 bool bl_icr_create(bl_addr_t sect_addr, uint32_t sect_size, uint32_t pl_size,
                    uint32_t pl_ver) {
-  if (sect_size && pl_size && sect_size <= BL_ADDR_MAX - sect_size &&
-      sect_size >= pl_size + BL_ICR_SIZE) {
+  if (bl_icr_check_sect_size(sect_size, pl_size)) {
     bl_integrity_check_rec_t icr;
-    bl_addr_t icr_addr = sect_addr + sect_size - BL_ICR_SIZE;
+    bl_addr_t icr_addr = sect_addr + sect_size - BL_ICR_OFFSET_FROM_END;
     if (icr_struct_create_main(&icr, sect_addr, sect_size, pl_size, pl_ver)) {
       return blsys_flash_write(icr_addr, &icr, sizeof(icr));
     }
@@ -65,19 +57,17 @@ bool bl_icr_create(bl_addr_t sect_addr, uint32_t sect_size, uint32_t pl_size,
 }
 
 /**
- * Verifies integrity of the Main section in flash memory
+ * Validates an integrity check record
  *
  * @param p_icr      pointer to integrity check record
  * @return           true if integrity check record is valid
  */
 static bool icr_validate(const bl_integrity_check_rec_t* p_icr) {
   if (p_icr) {
-    if (BL_ICR_MAGIC == p_icr->magic &&
-        BL_ICR_STRUCT_REV == p_icr->struct_rev &&
-        p_icr->pl_ver <= BL_VERSION_MAX) {
-      uint32_t crc = crc32_fast(p_icr, ICR_CRC_CHECKED_SIZE, 0U);
-      return (crc == p_icr->struct_crc);
-    }
+    return (BL_ICR_MAGIC == p_icr->magic &&
+            BL_ICR_STRUCT_REV == p_icr->struct_rev &&
+            crc32_fast(p_icr, ICR_CRC_CHECKED_SIZE, 0U) == p_icr->struct_crc &&
+            p_icr->pl_ver <= BL_VERSION_MAX);
   }
   return false;
 }
@@ -112,8 +102,8 @@ BL_STATIC_NO_TEST bool icr_verify_main(const bl_integrity_check_rec_t* p_icr,
  */
 static bool icr_get(bl_integrity_check_rec_t* p_icr, bl_addr_t sect_addr,
                     uint32_t sect_size) {
-  if (p_icr && sect_size) {
-    bl_addr_t icr_addr = sect_addr + sect_size - BL_ICR_SIZE;
+  if (p_icr && sect_size && sect_size > BL_FW_SECT_OVERHEAD) {
+    bl_addr_t icr_addr = sect_addr + sect_size - BL_ICR_OFFSET_FROM_END;
     if (blsys_flash_read(icr_addr, p_icr, sizeof(bl_integrity_check_rec_t))) {
       return icr_validate(p_icr);
     }
@@ -150,4 +140,90 @@ bool bl_icr_get_version(bl_addr_t sect_addr, uint32_t sect_size,
     }
   }
   return false;
+}
+
+bool bl_icr_check_sect_size(uint32_t sect_size, uint32_t pl_size) {
+  return (sect_size && pl_size && sect_size <= BL_ADDR_MAX - sect_size &&
+          pl_size <= UINT32_MAX - BL_FW_SECT_OVERHEAD &&
+          pl_size + BL_FW_SECT_OVERHEAD <= sect_size);
+}
+
+/**
+ * Validates a version check record
+ *
+ * @param p_vcr      pointer to version check record
+ * @return           true if version check record is valid
+ */
+BL_STATIC_NO_TEST bool vcr_validate(const bl_version_check_rec_t* p_vcr) {
+  static const char vcr_magic[BL_MEMBER_SIZE(bl_version_check_rec_t, magic)] =
+      BL_VCR_MAGIC;
+  if (p_vcr) {
+    return (bl_memeq(p_vcr->magic, vcr_magic, sizeof(vcr_magic)) &&
+            BL_VCR_STRUCT_REV == p_vcr->struct_rev &&
+            crc32_fast(p_vcr, VCR_CRC_CHECKED_SIZE, 0U) == p_vcr->struct_crc &&
+            p_vcr->pl_ver <= BL_VERSION_MAX);
+  }
+  return false;
+}
+
+/**
+ * Reads a version check record from the firmware section
+ *
+ * @param p_vcr     pointer to variable receiving a version check record
+ * @param vcr_addr  address of record in the flash memory
+ * @return          true if version check record read successfully
+ */
+static bool vcr_get(bl_version_check_rec_t* p_vcr, bl_addr_t vcr_addr) {
+  if (p_vcr) {
+    if (blsys_flash_read(vcr_addr, p_vcr, sizeof(bl_version_check_rec_t))) {
+      return vcr_validate(p_vcr);
+    }
+  }
+  return false;
+}
+
+bool bl_vcr_create(bl_addr_t sect_addr, uint32_t sect_size, uint32_t pl_ver,
+                   bl_vcr_place_t place) {
+  if (sect_size && sect_size > BL_FW_SECT_OVERHEAD &&
+      sect_size > BL_VCR_OFFSET_FROM_END &&
+      sect_addr < BL_ADDR_MAX - sect_size && pl_ver <= BL_VERSION_MAX &&
+      (bl_vcr_starting == place || bl_vcr_ending == place)) {
+    bl_version_check_rec_t vcr = {
+        .magic = BL_VCR_MAGIC,
+        .struct_rev = BL_VCR_STRUCT_REV,
+        .pl_ver = pl_ver,
+    };
+    vcr.struct_crc = crc32_fast(&vcr, VCR_CRC_CHECKED_SIZE, 0U);
+    bl_addr_t vcr_addr = (bl_vcr_starting == place)
+                             ? sect_addr
+                             : sect_addr + sect_size - BL_VCR_OFFSET_FROM_END;
+    // Write record to flash memory
+    if (blsys_flash_write(vcr_addr, &vcr, sizeof(vcr))) {
+      // Verify
+      return (bl_vcr_get_version(sect_addr, sect_size, place) == pl_ver);
+    }
+  }
+  return false;
+}
+
+uint32_t bl_vcr_get_version(bl_addr_t sect_addr, uint32_t sect_size,
+                            bl_vcr_place_t place) {
+  uint32_t version = BL_VERSION_NA;
+  if (sect_size && sect_size > BL_FW_SECT_OVERHEAD &&
+      sect_size > BL_VCR_OFFSET_FROM_END &&
+      sect_addr < BL_ADDR_MAX - sect_size) {
+    bl_version_check_rec_t vcr;
+    if ((int)place & (int)bl_vcr_starting) {
+      if (vcr_get(&vcr, sect_addr) && vcr.pl_ver > version) {
+        version = vcr.pl_ver;
+      }
+    }
+    if ((int)place & (int)bl_vcr_ending) {
+      if (vcr_get(&vcr, sect_addr + sect_size - BL_VCR_OFFSET_FROM_END) &&
+          vcr.pl_ver > version) {
+        version = vcr.pl_ver;
+      }
+    }
+  }
+  return version;
 }

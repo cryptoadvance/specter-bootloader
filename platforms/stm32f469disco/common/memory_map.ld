@@ -53,6 +53,8 @@ _flash_code_start = ORIGIN(FLASH_BL1);
 _main_firmware_start = ORIGIN(FLASH_MAIN_FW);
 /* Size of the Main Firmware */
 _main_firmware_size = LENGTH(FLASH_MAIN_FW);
+/* Size of the Main Firmware's 1-st part: sector 5 */
+_main_firmware_part1_size = 128K;
 /* Start of the Bootloader copy 1, stored in Flash memory */
 _bl_copy1_start = ORIGIN(FLASH_BL1);
 /* Start of the Bootloader copy 2, stored in Flash memory */

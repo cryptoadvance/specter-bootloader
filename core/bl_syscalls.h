@@ -58,6 +58,7 @@ typedef struct bl_ffind_ctx_struct {
 typedef enum bl_flash_map_item_t_ {
   bl_flash_firmware_base = 0,      ///< Base address of the Main Firmware
   bl_flash_firmware_size,          ///< Size reserved for the Main Firmware
+  bl_flash_firmware_part1_size,    ///< Size of Main Firmware's 1-st part
   bl_flash_bootloader_image_base,  ///< Base address of Bootloader in HEX file
   bl_flash_bootloader_copy1_base,  ///< Base address of Bootloader copy 1
   bl_flash_bootloader_copy2_base,  ///< Base address of Bootloader copy 2

@@ -19,6 +19,7 @@ bool icr_struct_create_main(bl_integrity_check_rec_t* p_icr,
                             uint32_t pl_size, uint32_t pl_ver);
 bool icr_verify_main(const bl_integrity_check_rec_t* p_icr,
                      bl_addr_t main_addr);
+bool vcr_validate(const bl_version_check_rec_t* p_vcr);
 }
 
 /// Reference payload
@@ -69,7 +70,7 @@ TEST_CASE("Integrity check record: internals") {
 }
 
 TEST_CASE("Integrity check record") {
-  FlashBuf flash(ref_payload, sizeof(ref_payload), BL_ICR_SIZE);
+  FlashBuf flash(ref_payload, sizeof(ref_payload), BL_FW_SECT_OVERHEAD);
 
   // Valid
   REQUIRE(bl_icr_create(flash.base(), flash.size(), sizeof(ref_payload),
@@ -104,4 +105,215 @@ TEST_CASE("Integrity check record") {
                               sizeof(ref_payload) + 1U, ref_version));
   REQUIRE_FALSE(bl_icr_create(flash.base(), sizeof(ref_payload), flash.size(),
                               ref_version));
+}
+
+TEST_CASE("Firmware sector size validation") {
+  // Valid
+  REQUIRE(bl_icr_check_sect_size(1U + BL_FW_SECT_OVERHEAD, 1U));
+  REQUIRE(bl_icr_check_sect_size(123456U + BL_FW_SECT_OVERHEAD, 123456U));
+  REQUIRE(bl_icr_check_sect_size(123456U + BL_FW_SECT_OVERHEAD, 123456U - 1U));
+
+  // Invalid
+  REQUIRE_FALSE(bl_icr_check_sect_size(0U, 0U));
+  REQUIRE_FALSE(bl_icr_check_sect_size(0, 1U));
+  REQUIRE_FALSE(bl_icr_check_sect_size(BL_FW_SECT_OVERHEAD - 1U, 1U));
+  REQUIRE_FALSE(bl_icr_check_sect_size(BL_FW_SECT_OVERHEAD, 0U));
+  REQUIRE_FALSE(
+      bl_icr_check_sect_size(123456U + BL_FW_SECT_OVERHEAD, 123456U + 1U));
+}
+
+/**
+ * Recalculates CRC in VCR record
+ *
+ * @param vcr  reference to VCR record
+ * @return     pointer to updated VCR record
+ */
+static bl_version_check_rec_t* vcr_recalc_crc(bl_version_check_rec_t& vcr) {
+  vcr.struct_crc = crc32_fast(&vcr, VCR_CRC_CHECKED_SIZE, 0U);
+  return &vcr;
+}
+
+TEST_CASE("Version check record: validation") {
+  bl_version_check_rec_t ref_vcr = {
+      .magic = BL_VCR_MAGIC,
+      .struct_rev = BL_VCR_STRUCT_REV,
+      .pl_ver = 12345,
+  };
+  ref_vcr.struct_crc = crc32_fast(&ref_vcr, VCR_CRC_CHECKED_SIZE, 0U);
+
+  // Valid
+  SECTION("valid") {
+    SECTION("trivial") { REQUIRE(vcr_validate(&ref_vcr)); }
+    SECTION("non-zero reserved word") {
+      auto vcr = ref_vcr;
+      vcr.rsv[0] ^= 12345;
+      REQUIRE(vcr_validate(vcr_recalc_crc(vcr)));
+    }
+  }
+
+  // Invalid
+  SECTION("invalid") {
+    SECTION("wrong magic string") {
+      auto vcr = ref_vcr;
+      for (int i = 0; i < sizeof(vcr.magic); ++i) {
+        for (int bit = 0; bit < 7; ++bit) {
+          vcr.magic[i] ^= 1 << bit;
+          REQUIRE_FALSE(vcr_validate(vcr_recalc_crc(vcr)));
+          vcr.magic[i] ^= 1 << bit;
+          REQUIRE(vcr_validate(vcr_recalc_crc(vcr)));
+        }
+      }
+    }
+    SECTION("wrong structure revision") {
+      auto vcr = ref_vcr;
+      vcr.struct_rev = 123456U;
+      REQUIRE_FALSE(vcr_validate(vcr_recalc_crc(vcr)));
+    }
+    SECTION("wrong payload version") {
+      auto vcr = ref_vcr;
+      vcr.pl_ver = BL_VERSION_MAX + 1;
+      REQUIRE_FALSE(vcr_validate(vcr_recalc_crc(vcr)));
+    }
+    SECTION("wrong CRC") {
+      auto vcr = ref_vcr;
+      vcr.struct_crc ^= 1;
+      REQUIRE_FALSE(vcr_validate(&vcr));
+    }
+    SECTION("corrupted contents") {
+      auto vcr = ref_vcr;
+      vcr.rsv[0] ^= 1;
+      REQUIRE_FALSE(vcr_validate(&vcr));
+    }
+  }
+}
+
+TEST_CASE("Version check record: high level") {
+  // Valid
+  SECTION("valid") {
+    SECTION("empty storage") {
+      FlashBuf flash(NULL, 12345 + BL_FW_SECT_OVERHEAD);
+      // Read from empty storage
+      REQUIRE(BL_VERSION_NA ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_starting));
+      REQUIRE(BL_VERSION_NA ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_ending));
+      REQUIRE(BL_VERSION_NA ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_any));
+    }
+    SECTION("starting record") {
+      FlashBuf flash(NULL, 12345 + BL_FW_SECT_OVERHEAD);
+      REQUIRE(bl_vcr_create(flash.base(), flash.size(), ref_version,
+                            bl_vcr_starting));
+      REQUIRE(ref_version ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_starting));
+      REQUIRE(BL_VERSION_NA ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_ending));
+      REQUIRE(ref_version ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_any));
+    }
+    SECTION("ending record") {
+      FlashBuf flash(NULL, 12345 + BL_FW_SECT_OVERHEAD);
+      REQUIRE(bl_vcr_create(flash.base(), flash.size(), ref_version,
+                            bl_vcr_ending));
+      REQUIRE(BL_VERSION_NA ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_starting));
+      REQUIRE(ref_version ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_ending));
+      REQUIRE(ref_version ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_any));
+    }
+    SECTION("both records") {
+      FlashBuf flash(NULL, 12345 + BL_FW_SECT_OVERHEAD);
+      REQUIRE(bl_vcr_create(flash.base(), flash.size(), 102U, bl_vcr_starting));
+      REQUIRE(bl_vcr_create(flash.base(), flash.size(), 101U, bl_vcr_ending));
+      REQUIRE(102U ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_starting));
+      REQUIRE(101U ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_ending));
+      REQUIRE(102U ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_any));
+    }
+  }
+
+  SECTION("invalid") {
+    SECTION("corrupted starting record") {
+      FlashBuf flash(NULL, 12345 + BL_FW_SECT_OVERHEAD);
+      REQUIRE(bl_vcr_create(flash.base(), flash.size(), 102U, bl_vcr_starting));
+      REQUIRE(bl_vcr_create(flash.base(), flash.size(), 101U, bl_vcr_ending));
+      flash[0] ^= 1;
+      REQUIRE(BL_VERSION_NA ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_starting));
+      REQUIRE(101U ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_ending));
+      REQUIRE(101U ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_any));
+    }
+    SECTION("corrupted ending record") {
+      FlashBuf flash(NULL, 12345 + BL_FW_SECT_OVERHEAD);
+      REQUIRE(bl_vcr_create(flash.base(), flash.size(), 201U, bl_vcr_starting));
+      REQUIRE(bl_vcr_create(flash.base(), flash.size(), 202U, bl_vcr_ending));
+      flash[flash.size() - 1] ^= 1;
+      REQUIRE(201U ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_starting));
+      REQUIRE(BL_VERSION_NA ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_ending));
+      REQUIRE(201U ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_any));
+    }
+    SECTION("corrupted both records") {
+      FlashBuf flash(NULL, 12345 + BL_FW_SECT_OVERHEAD);
+      REQUIRE(bl_vcr_create(flash.base(), flash.size(), 102U, bl_vcr_starting));
+      REQUIRE(bl_vcr_create(flash.base(), flash.size(), 101U, bl_vcr_ending));
+      flash[0] ^= 1;
+      flash[flash.size() - 1] ^= 1;
+      REQUIRE(BL_VERSION_NA ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_starting));
+      REQUIRE(BL_VERSION_NA ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_ending));
+      REQUIRE(BL_VERSION_NA ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_any));
+    }
+  }
+
+  SECTION("wrong arguments") {
+    SECTION("bl_vcr_create()") {
+      SECTION("zero size") {
+        FlashBuf flash(NULL, 12345 + BL_FW_SECT_OVERHEAD);
+        REQUIRE_FALSE(bl_vcr_create(flash.base(), 0, 102U, bl_vcr_starting));
+      }
+
+      SECTION("size too small") {
+        FlashBuf flash(NULL, 12345 + BL_FW_SECT_OVERHEAD);
+        REQUIRE_FALSE(bl_vcr_create(flash.base(), BL_FW_SECT_OVERHEAD - 1U,
+                                    102U, bl_vcr_starting));
+      }
+      SECTION("wrong place (bl_vcr_any)") {
+        FlashBuf flash(NULL, 12345 + BL_FW_SECT_OVERHEAD);
+        REQUIRE_FALSE(
+            bl_vcr_create(flash.base(), flash.size(), 102U, bl_vcr_any));
+      }
+      SECTION("wrong place") {
+        FlashBuf flash(NULL, 12345 + BL_FW_SECT_OVERHEAD);
+        REQUIRE_FALSE(bl_vcr_create(flash.base(), flash.size(), 102U,
+                                    (bl_vcr_place_t)1234567));
+      }
+    }
+    SECTION("bl_vcr_get_version()") {
+      // Prepare a valid starting record
+      FlashBuf flash(NULL, 12345 + BL_FW_SECT_OVERHEAD);
+      REQUIRE(bl_vcr_create(flash.base(), flash.size(), ref_version,
+                            bl_vcr_starting));
+      REQUIRE(ref_version ==
+              bl_vcr_get_version(flash.base(), flash.size(), bl_vcr_starting));
+      SECTION("zero size") {
+        REQUIRE(BL_VERSION_NA ==
+                bl_vcr_get_version(flash.base(), 0U, bl_vcr_starting));
+      }
+      SECTION("size too small") {
+        REQUIRE(BL_VERSION_NA == bl_vcr_get_version(flash.base(),
+                                                    BL_FW_SECT_OVERHEAD - 1,
+                                                    bl_vcr_starting));
+      }
+    }
+  }
 }
