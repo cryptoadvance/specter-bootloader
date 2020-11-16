@@ -52,7 +52,7 @@ typedef struct BL_ATTRS((packed)) bl_icr_sect_ {
 /// Integrity check record
 ///
 /// This structure has fixed size of 32 bytes. All 32-bit words are stored in
-/// little-endian format. CRC is calculated over first 28 bytes byte of this
+/// little-endian format. CRC is calculated over first 28 bytes of this
 /// structure.
 typedef struct BL_ATTRS((packed)) bl_integrity_check_rec_ {
   uint32_t magic;           ///< Magic word, BL_ICR_MAGIC
@@ -66,7 +66,7 @@ typedef struct BL_ATTRS((packed)) bl_integrity_check_rec_ {
 /// Version check record
 ///
 /// This structure has fixed size of 32 bytes. All 32-bit words are stored in
-/// little-endian format. CRC is calculated over first 28 bytes byte of this
+/// little-endian format. CRC is calculated over first 28 bytes of this
 /// structure.
 typedef struct BL_ATTRS((packed)) bl_version_check_rec_t_ {
   char magic[sizeof(BL_VCR_MAGIC)];  ///< Magic string, BL_VCR_MAGIC

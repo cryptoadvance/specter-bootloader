@@ -768,18 +768,18 @@ static bool erase_main_firmware_area(void) {
   uint32_t latest_ver = bl_max3_u32(icr_ver, startvcr_ver, endvcr_ver);
 
   bool ok = (fw_size > part1_size);
-  // Check if we have VCR at the beginning of the section (interrupted upgrade)
+  // (1) Check if we have VCR at the beginning of the section
   if (BL_VERSION_NA == startvcr_ver) {  // No VCR at the beginning
-    // (1) Erase part 1
+    // (2) Erase part 1
     ok = ok && blsys_flash_erase(fw_addr, part1_size);
-    // (2) Create VCR at the beginning of the section
+    // (3) Create VCR at the beginning of the section
     ok = ok && bl_vcr_create(fw_addr, fw_size, latest_ver, bl_vcr_starting);
   }
-  // (3) Erase part 2
+  // (4) Erase part 2
   ok = ok && blsys_flash_erase(fw_addr + part1_size, fw_size - part1_size);
-  // (4) Create VCR at the end of the section
+  // (5) Create VCR at the end of the section
   ok = ok && bl_vcr_create(fw_addr, fw_size, latest_ver, bl_vcr_ending);
-  // (5) Erase part 1
+  // (6) Erase part 1
   ok = ok && blsys_flash_erase(fw_addr, part1_size);
 
   return ok;
