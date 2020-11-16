@@ -151,6 +151,7 @@ static void lcd_init_if_needed(void) {
     // Turn the display on
     HAL_Delay(100);
     BSP_LCD_DisplayOn();
+    ctx.displayed_page = gui_page_none;
     ctx.lcd_initialized = true;
   }
 }
