@@ -9,6 +9,12 @@ MKDIR_P = mkdir -p
 TARGET = bootloader
 
 ######################################
+# public keys folder
+######################################
+# production keys
+KEYS ?= production
+
+######################################
 # building variables
 ######################################
 # optimization
@@ -70,7 +76,7 @@ C_SOURCES += $(addprefix $(LIB_DIR)/bech32/,\
 	segwit_addr.c \
 	)
 # Public keys
-C_SOURCES += $(CMN_ROOT)/keys/test/test_pubkeys.c
+C_SOURCES += $(CMN_ROOT)/keys/$(KEYS)/pubkeys.c
 
 # C includes
 C_INCLUDES =  \

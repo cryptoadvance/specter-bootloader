@@ -15,6 +15,9 @@ ifdef TARGET_PLATFORM
   $(eval $(RUN_ARGS):;@:)
 endif
 
+# pubkeys folder: keys/production/pubkeys.c
+KEYS ?= production
+
 .PHONY: $(PLATFORMS) clean test unit_tests
 
 
@@ -29,7 +32,7 @@ unit_tests:
 
 stm32f469disco:
 	@$(MAKE) -f $(STARTUP_MAKEFILE) $(RUN_ARGS) TARGET_PLATFORM=$(TARGET_PLATFORM)
-	@$(MAKE) -f $(BOOTLOADER_MAKEFILE) $(RUN_ARGS) TARGET_PLATFORM=$(TARGET_PLATFORM)
+	@$(MAKE) -f $(BOOTLOADER_MAKEFILE) $(RUN_ARGS) TARGET_PLATFORM=$(TARGET_PLATFORM) KEYS=$(KEYS)
 
 testbench:
 	$(shell echo Test Bench)
