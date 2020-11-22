@@ -104,6 +104,15 @@ The **stm32f469disco** platform supports three levels of read protection:
 
 For additional information please see the STM32F469xx Reference Manual.
 
+You can change RDP from level 1 to level 0 using `openocd`.
+This will erase all the content of the microcontroller:
+
+```
+openocd -f openocd.cfg -f ocd-unlock.cfg
+```
+
+RDP level 2 is unreversable, so think twice before enabling it.
+
 To enable RDP Level 2 in addition to `READ_PROTECTION=2` it is needed to modify the source code manually as well. In the file `platforms/stm32f469disco/bootloader/bl_syscalls.c`, the block of code in `blsys_flash_read_protect()` function inside `#ifdef 0` should be made active.
 
 **WARNING:** By enabling RDP Level 2 protection mode you are making an irreversible change to the flash memory of the MCU. It is not possible to use the board for debugging after running the Bootloader compiled with `READ_PROTECTION=2`. The Start-up code becomes unreplaceable as well.
