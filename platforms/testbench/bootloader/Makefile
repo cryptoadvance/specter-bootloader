@@ -41,7 +41,7 @@ C_SOURCES += $(addprefix $(LIB_DIR)/bech32/,\
 	segwit_addr.c \
 	)
 # Public keys
-C_SOURCES += $(CMN_ROOT)/keys/test/test_pubkeys.c
+C_SOURCES += $(CMN_ROOT)/keys/test/pubkeys.c
 
 # C includes
 C_INCLUDES =  \

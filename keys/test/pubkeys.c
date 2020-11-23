@@ -1,5 +1,5 @@
 /**
- * @file       test_pubkeys.c
+ * @file       pubkeys.c
  * @brief      Test public keys
  * @author     Mike Tolkachev <contact@miketolkachev.dev>
  * @copyright  Copyright 2020 Crypto Advance GmbH. All rights reserved.
