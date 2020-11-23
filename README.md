@@ -48,6 +48,10 @@ For example, to build debug versions of the Bootloader and the Start-up code for
 make stm32f469disco DEBUG=1
 ```
 
+`KEYS=...` parameter is used to define which keys the bootloader will use for verification. Default option is `KEYS=selfsigned` and you need to create the `./keys/selfsigned/pubkeys.c` file with your public keys to make it working. You can also build firmware with `production` or `test` keys. For `test` keys there are known private keys. `production` keys are secret.
+
+Read more about building the bootloader and generating upgrades in [doc/selfsigned.md](doc/selfsigned.md).
+
 ## Tests
 
 Along with the `testbench` platform, the project includes a suite of unit tests for the core functions of the Bootloader. These tests are using a convenient single-header [Catch2 framework](https://github.com/catchorg/Catch2). To build and execute unit tests, use:
