@@ -32,7 +32,7 @@ unit_tests:
 	@$(MAKE) -f test/Makefile
 
 stm32f469disco:
-	test -f keys/$(KEYS)/pubkeys.c || (echo ERROR: ./$(KEYS)/pubkey.c file does not exist. Create it or define different KEYS parameter; exit 1;)
+	@test -f keys/$(KEYS)/pubkeys.c || (echo ERROR: ./$(KEYS)/pubkey.c file does not exist. Create it or define different KEYS parameter; exit 1;)
 	@$(MAKE) -f $(STARTUP_MAKEFILE) $(RUN_ARGS) TARGET_PLATFORM=$(TARGET_PLATFORM)
 	@$(MAKE) -f $(BOOTLOADER_MAKEFILE) $(RUN_ARGS) TARGET_PLATFORM=$(TARGET_PLATFORM) KEYS=$(KEYS)
 
