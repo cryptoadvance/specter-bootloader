@@ -1097,6 +1097,36 @@ static int make_section_report(char* dst_buf, size_t dst_size,
 }
 
 /**
+ * Appends a text describing read/write protection status to a report string
+ *
+ * @param dst_str   destination null-terminated string
+ * @param dst_size  size of the buffer storing provided string
+ * @return          true if successful
+ */
+static bool append_rw_protection_status(char* dst_str, size_t dst_size) {
+  // Report state of write protection
+  static const char* wrp_string =
+#ifdef WRITE_PROTECTION
+      "\n\nWrite protection: enabled";
+#else
+      "\n\nWrite protection: disabled";
+#endif
+  bool ok = bl_format_append(dst_str, dst_size, wrp_string);
+
+  // Report of read protection
+  ok = ok && bl_format_append(dst_str, dst_size, "\nRead protection:  ");
+  int rdp_level = blsys_flash_get_read_protection_level();
+  if (0 == rdp_level) {
+    ok = ok && bl_format_append(dst_str, dst_size, "disabled");
+  } else if (rdp_level > 0) {
+    ok = ok && bl_format_append(dst_str, dst_size, "Level %i", rdp_level);
+  } else {
+    ok = ok && bl_format_append(dst_str, dst_size, "unavailable");
+  }
+  return ok;
+}
+
+/**
  * Makes a report regarding successful upgrade
  *
  * @param dst_buf    destination buffer where report string is placed
@@ -1138,26 +1168,8 @@ static bool make_upgrade_report(char* dst_buf, size_t dst_size,
       return false;
     }
 
-    // Report state of write protection
-    static const char* wrp_string =
-#ifdef WRITE_PROTECTION
-        "\n\nWrite protection: enabled";
-#else
-        "\n\nWrite protection: disabled";
-#endif
-    bool ok = bl_format_append(p_dst, rm_size, wrp_string);
-
-    // Report of read protection
-    ok = ok && bl_format_append(p_dst, rm_size, "\nRead protection:  ");
-    int rdp_level = blsys_flash_get_read_protection_level();
-    if (0 == rdp_level) {
-      ok = ok && bl_format_append(p_dst, rm_size, "disabled");
-    } else if (rdp_level > 0) {
-      ok = ok && bl_format_append(p_dst, rm_size, "Level %i", rdp_level);
-    } else {
-      ok = ok && bl_format_append(p_dst, rm_size, "unavailable");
-    }
-    return ok;
+    // Report status of read/write protection
+    return append_rw_protection_status(p_dst, rm_size);
   }
   return false;
 }
@@ -1345,10 +1357,10 @@ static bool make_version_report(char* dst_buf, size_t dst_size,
     // clang-format off
     int text_len = snprintf(
       dst_buf, dst_size,
-      "Start-up    : %s\n"   \
+      "Start-up:     %s\n"   \
       "Bootloader 1: %s\n"   \
       "Bootloader 2: %s\n"   \
-      "Firmware    : %s\n\n" \
+      "Firmware:     %s\n\n" \
       "* - active bootloader",
       ver_str[version_id_startup],
       ver_str[version_id_bootloader1],
@@ -1357,7 +1369,10 @@ static bool make_version_report(char* dst_buf, size_t dst_size,
     );
     // clang-format on
 
-    return text_len > 0;
+    if (text_len > 0) {
+      // Report status of read/write protection
+      return append_rw_protection_status(dst_buf, dst_size);
+    }
   }
   return false;
 }
