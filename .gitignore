@@ -1,0 +1,9 @@
+build
+.DS_Store
+/.vscode
+.venv
+__pycache__
+.coverage
+*.bin
+*.hex
+tools/requirements.in

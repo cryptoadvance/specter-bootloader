@@ -1,0 +1,150 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: upgrade-generator gen",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/upgrade-generator.py",
+      "console": "integratedTerminal",
+      "args": [
+        "gen",
+        "-b",
+        "build/stm32f469disco/bootloader/release/bootloader.hex",
+        "-f",
+        "firmware.hex",
+        "-k",
+        "keys/test/vend1.pem",
+        "-p",
+        "stm32f469disco",
+        "specter_upgrade.bin"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Python: upgrade-generator sign with vend2.pem",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/upgrade-generator.py",
+      "console": "integratedTerminal",
+      "args": [
+        "sign",
+        "-k",
+        "keys/test/vend2.pem",
+        "specter_upgrade.bin"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Python: upgrade-generator dump",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/upgrade-generator.py",
+      "console": "integratedTerminal",
+      "args": [
+        "dump",
+        "specter_upgrade.bin"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Python: upgrade-generator message",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/upgrade-generator.py",
+      "console": "integratedTerminal",
+      "args": [
+        "message",
+        "specter_upgrade.bin"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Python: upgrade-generator import-sig",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/upgrade-generator.py",
+      "console": "integratedTerminal",
+      "args": [
+        "import-sig",
+        "-s",
+        "IHF3LC2jP3u3nRGHYwczfZP4ueKCou1Ki2fQJtYtYqUTd3t9QGKdlzISB0qHJlX6gUZ0fdHSWx73MKSkufE5AR8=",
+        "specter_upgrade.bin"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Python: make-initial-firmware",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/make-initial-firmware.py",
+      "console": "integratedTerminal",
+      "args": [
+        "-s",
+        "build/stm32f469disco/startup/release/startup.hex",
+        "-b",
+        "build/stm32f469disco/bootloader/release/bootloader.hex",
+        "-f",
+        "firmware.hex",
+        "initial_firmware.hex",
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Python: Module",
+      "type": "python",
+      "request": "launch",
+      "module": "core"
+    },
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Debug Bootloader",
+      "cwd": "${workspaceRoot}",
+      "executable": "./build/stm32f469disco/bootloader/debug/bootloader.elf",
+      "request": "launch",
+      "type": "cortex-debug",
+      "servertype": "openocd",
+      "svdFile": "./debug/STM32F469.svd",
+      "configFiles": [
+        "board/stm32f469discovery.cfg"
+      ],
+      "preLaunchTask": "Debug build"
+    },
+    {
+      "name": "Debug Start-up code",
+      "cwd": "${workspaceRoot}",
+      "executable": "./build/stm32f469disco/startup/debug/startup.elf",
+      "request": "launch",
+      "type": "cortex-debug",
+      "servertype": "openocd",
+      "svdFile": "./debug/STM32F469.svd",
+      "configFiles": [
+        "board/stm32f469discovery.cfg"
+      ],
+      "preLaunchTask": "Debug build"
+    },
+    {
+      "name": "Debug testbench",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/testbench/bootloader/debug/bootloader.out",
+      "preLaunchTask": "Debug build testbench"
+    },
+    {
+      "name": "Debug unit tests",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/test_runner/debug/test_runner.out",
+      "preLaunchTask": "Debug build unit tests"
+    },
+  ]
+}

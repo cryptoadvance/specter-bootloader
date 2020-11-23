@@ -1,0 +1,6 @@
+[submodule "lib/secp256k1"]
+	path = lib/secp256k1
+	url = https://github.com/bitcoin-core/secp256k1.git
+[submodule "lib/fatfs"]
+	path = lib/fatfs
+	url = https://github.com/cryptoadvance/fatfs.git

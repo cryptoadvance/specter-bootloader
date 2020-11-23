@@ -1,0 +1,110 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Clean device build directory",
+      "type": "shell",
+      "command": "make clean",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "Debug build",
+      "type": "shell",
+      "command": "make stm32f469disco DEBUG=1",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Release build",
+      "type": "shell",
+      "command": "make stm32f469disco",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$gcc"
+      ]
+    },
+    {
+      "label": "Erase internal Flash (unbrick)",
+      "type": "shell",
+      "command": "openocd -f board/stm32f469discovery.cfg -c \"init\" -c \"reset halt\" -c \"flash erase_sector 0 0 last\" -c \"shutdown\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "Erase first sector",
+      "type": "shell",
+      "command": "openocd -f board/stm32f469discovery.cfg -c \"init\" -c \"reset halt\" -c \"flash erase_sector 0 0 0\" -c \"shutdown\"",
+      "problemMatcher": []
+    },
+    {
+      "label": "Debug build testbench",
+      "type": "shell",
+      "command": "make testbench DEBUG=1",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Debug build unit tests",
+      "type": "shell",
+      "command": "make unit_tests DEBUG=1",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": "build",
+    },
+    {
+      "label": "Generate Doxygen",
+      "type": "shell",
+      "command": "doxygen",
+      "args": [
+        "Doxyfile"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/"
+      },
+      "problemMatcher": {
+        "owner": "c",
+        "fileLocation": [
+          "relative",
+          "./"
+        ],
+        "pattern": {
+          "regexp": "(.+):([0-9]+): ([a-zA-Z]+): (.+)$",
+          "file": 1,
+          "line": 2,
+          "severity": 3,
+          "message": 4
+        }
+      },
+      "group": "build",
+    }
+  ]
+}
