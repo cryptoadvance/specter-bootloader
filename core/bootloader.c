@@ -167,7 +167,7 @@ static struct {
   /// Progress context
   progress_ctx_t progress_ctx;
   /// Buffer used by formatted print functions
-  char format_buf[256];
+  char format_buf[512];
   // IO buffer
   uint8_t io_buf[IO_BUF_SIZE];
   /// Hashes of of Payload sections

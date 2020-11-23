@@ -213,7 +213,7 @@ static size_t printable_text_len(const char* text, size_t limit,
                                  uint32_t flags) {
   if (text && limit) {
     size_t len = 0U;
-    size_t whole_word_len = 0U;
+    size_t whole_word_len = limit;
     const char* p_text = text;
     bool prev_space = false;
     while (*p_text != '\0' && *p_text != '\n' && *p_text != '\r' &&
