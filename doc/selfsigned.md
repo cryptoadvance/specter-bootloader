@@ -17,7 +17,9 @@ make stm32f469disco
 
 Read the [main readme](../README.md) to learn more, pay extra attention to the `READ_PROTECTION` and `WRITE_PROTECTION` parameters.
 
-We recommend to make a bootloader without any protection at first, flash it, sign and flash the firmware, check that everything works, and then bump the version of the bootloader, recompile with `READ_PROTECTION=1` and `WRITE_PROTECTION=1`, sign and upload the bootloader upgrade.
+We recommend making a bootloader without any protection at first, flash it, sign and flash the firmware, check that signing procedure works, and then bump the version of the bootloader, recompile with `READ_PROTECTION=1` and `WRITE_PROTECTION=1`, sign and upload the bootloader upgrade.
+
+If you are sure that everything works you can compile bootloader with all the protections right away.
 
 ## Creating initial firmware
 
@@ -37,6 +39,8 @@ Now you can create initial firmware:
 python3 make-initial-firmware.py -s ../build/stm32f469disco/startup/release/startup.hex -b ../build/stm32f469disco/bootloader/release/bootloader.hex -bin initial_firmware.bin
 ```
 
+If you want to include main firmware there as well, just add `-f ../path/to/compiled/main/firmware.hex`. Note that firmware should be compiled with `USE_DBOOT=1` for that.
+
 The resulting `initial_firmware.bin` can be copy-pasted to the `DIS_F469I` volume that appears when you connect the board with miniUSB.
 
 Alternatively, if you have [`stlink-tools`](https://github.com/stlink-org/stlink) installed, you can flash the firmware with verification using:
@@ -45,6 +49,8 @@ st-flash write initial_firmware.bin 0x8000000
 ```
 
 After flashing of this initial firmware you should see an error screen of the bootloader that "No valid firmware found" - this is what we expect because we didn't upload firmware yet. For that we can generate an upgrade file.
+
+Note that release version of the bootloader (rc99) only accepts release versions of the firmware.
 
 ## Creating upgrade files
 
@@ -69,7 +75,7 @@ Use this command to get the message to sign:
 python3 upgrade-generator.py message specter_upgrade.bin 
 ```
 
-It will return something like `1.4.0rc3-1sujn22lsgatcpyesj9v8lf4zts6myds0cwdl9ukk7pqnasr06laq2gm2yt` - here you see that it's a firmware version 1.4.0-rc3 and bech32-encoded hash of the firmware. You can sign this message now and when you get a signature in base64 format you need to add it to the upgrade:
+It will return something like `1.4.0-1sujn22lsgatcpyesj9v8lf4zts6myds0cwdl9ukk7pqnasr06laq2gm2yt` - here you see that it's a firmware version 1.4.0 and bech32-encoded hash of the firmware. You can sign this message now and when you get a signature in base64 format you need to add it to the upgrade:
 
 ```sh
 python3 upgrade-generator.py import-sig -s IP6SuI23iNNxYLCyh/J3FsY8Zd687tfMNFR37ZppprGNDG1Ij3Oh4u3PvrYmdno/PRG9Lqourael5oAJ+kWT+d4= specter_upgrade.bin
@@ -77,7 +83,7 @@ python3 upgrade-generator.py import-sig -s IP6SuI23iNNxYLCyh/J3FsY8Zd687tfMNFR37
 
 Repeat it for necessary number of signatures, now you should be able to copy this signed `specter_upgrade.bin` file to the SD card and load the firmware to the device.
 
-Verify that upgrade process works, firmware is fine etc. After that you can upgrade the bootloader to "protected" one.
+Verify that upgrade process works, signing of the firmware went well etc. After that you can upgrade the bootloader to "protected" one.
 
 ## Protected bootloader
 
