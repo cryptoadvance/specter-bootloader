@@ -665,7 +665,7 @@ static bool flash_set_write_protection_state_global(bool enable) {
  *                     @ref FLASHEx_Option_Bytes_Read_Protection
  * @return             true if successful
  */
-bool flash_get_rdp_level(uint32_t* p_rdp_level) {
+static bool flash_get_rdp_level(uint32_t* p_rdp_level) {
   if (p_rdp_level) {
     FLASH_OBProgramInitTypeDef config = {0};
     HAL_FLASHEx_OBGetConfig(&config);
@@ -686,7 +686,7 @@ bool flash_get_rdp_level(uint32_t* p_rdp_level) {
  *                   @ref FLASHEx_Option_Bytes_Read_Protection
  * @return           true if successful
  */
-bool flash_set_rdp_level(uint32_t rdp_level) {
+static bool flash_set_rdp_level(uint32_t rdp_level) {
   if (IS_OB_RDP_LEVEL(rdp_level)) {
     // Unlock access to flash memory and option bytes
     bool ok = (HAL_OK == HAL_FLASH_Unlock());
@@ -747,8 +747,8 @@ bool blsys_flash_read_protect(int level_) {
     case 1:
       new_rdp_level = OB_RDP_LEVEL_1;
       break;
-#if 0  // RDP Level 2 is intentionally disabled. If misused may brick your
-       // board!
+// RDP Level 2 is intentionally disabled. If misused may brick your board!
+#if 0
     case 2:
       new_rdp_level = OB_RDP_LEVEL_2;
       break;
@@ -774,7 +774,19 @@ bool blsys_flash_read_protect(int level_) {
     ok = ok && flash_get_rdp_level(&curr_rdp_level);
     ok = ok && curr_rdp_level == new_rdp_level;
     if (ok) {
-      // Reboot the MCU if successful
+      if (0 == level_) {
+        (void)blsys_alert(bl_alert_info, "Read protection",
+                          "Read protection is disabled", BL_FOREVER, 0U);
+      } else {
+        char msg[64];
+        int len = snprintf(msg, sizeof(msg),
+                           "Read protection is now: Level %i", level_);
+        if (len > 0) {
+          (void)blsys_alert(bl_alert_info, "Read protection", msg, BL_FOREVER,
+                            0U);
+        }
+      }
+      // Reboot the MCU if unsuccessful
       HAL_NVIC_SystemReset();
     }
   }
