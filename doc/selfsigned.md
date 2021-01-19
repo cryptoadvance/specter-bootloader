@@ -15,6 +15,12 @@ When you have the `pubkeys.c` file you can build the startup code and bootloader
 make stm32f469disco
 ```
 
+or
+
+```sh
+make stm32f469disco READ_PROTECTION=1 WRITE_PROTECTION=1
+```
+
 Read the [main readme](../README.md) to learn more, pay extra attention to the `READ_PROTECTION` and `WRITE_PROTECTION` parameters.
 
 We recommend making a bootloader without any protection at first, flash it, sign and flash the firmware, check that signing procedure works, and then bump the version of the bootloader, recompile with `READ_PROTECTION=1` and `WRITE_PROTECTION=1`, sign and upload the bootloader upgrade.
@@ -30,6 +36,7 @@ To create initial firmware go to the `tools` folder and install the dependencies
 ```sh
 cd tools
 virtualenv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
