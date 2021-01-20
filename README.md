@@ -2,6 +2,14 @@
 
 This is a secure bootloader for [Specter hardware wallet](https://github.com/cryptoadvance/specter-diy). It allows upgrading of the MicroPython virtual machine, frozen Python code, and the Bootloader itself via microSD card. Distributed firmware is signed using the ECDSA algorithm with secp256k1 ("Bitcoin") curve, and multiple signature schemes are supported.
 
+## Quick start
+
+Follow [selfsigned.md](./doc/selfsigned.md) to compile the bootloader, generate initial firmware and upgrade files.
+
+Read [remove_protection](./doc/remove_protection.md) to understand how to disable read and write protections on the board with the bootloader.
+
+Read [the specs](./doc/bootloader-spec.md) to get all the nasty details.
+
 ## How it works
 
 The Bootloader resides in the internal flash memory of the microcontroller and consists of two parts:
