@@ -46,17 +46,17 @@ endif
 # source
 ######################################
 # C sources
-C_SOURCES  = $(shell find $(LOC_ROOT) -name *.c)
+C_SOURCES  = $(sort $(shell find $(LOC_ROOT) -name *.c))
 # Common files
-C_SOURCES += $(shell find $(CMN_DIR) -name *.c)
+C_SOURCES += $(sort $(shell find $(CMN_DIR) -name *.c))
 # Bootloader core
-C_SOURCES += $(shell find $(CORE_DIR) -name *.c)
+C_SOURCES += $(sort $(shell find $(CORE_DIR) -name *.c))
 # STM32F4xx HAL
-C_SOURCES += $(shell find $(DRV_DIR)/STM32F4xx_HAL_Driver/Src -name *.c)
+C_SOURCES += $(sort $(shell find $(DRV_DIR)/STM32F4xx_HAL_Driver/Src -name *.c))
 # STM32469I-Discovery BSP
-C_SOURCES += $(shell find $(DRV_DIR)/BSP -name *.c)
+C_SOURCES += $(sort $(shell find $(DRV_DIR)/BSP -name *.c))
 # CRC32
-C_SOURCES += $(shell find $(LIB_DIR)/crc32 -name *.c)
+C_SOURCES += $(sort $(shell find $(LIB_DIR)/crc32 -name *.c))
 # FatFs
 C_SOURCES += $(addprefix $(LIB_DIR)/fatfs/source/,\
 	ff.c \
@@ -64,9 +64,9 @@ C_SOURCES += $(addprefix $(LIB_DIR)/fatfs/source/,\
 	ffunicode.c \
 	)
 # FatFs IO layer
-C_SOURCES += $(shell find $(DRV_DIR)/fatfs_io -name *.c)
+C_SOURCES += $(sort $(shell find $(DRV_DIR)/fatfs_io -name *.c))
 # Crypto library
-C_SOURCES += $(shell find $(LIB_DIR)/crypto -name *.c)
+C_SOURCES += $(sort $(shell find $(LIB_DIR)/crypto -name *.c))
 # libsecp256k1
 C_SOURCES += $(addprefix $(LIB_DIR)/secp256k1/src/,\
 	secp256k1.c \
@@ -118,7 +118,7 @@ C_DEFS += WRITE_PROTECTION=$(WRITE_PROTECTION)
 endif
 
 # ASM sources
-ASM_SOURCES = $(shell find $(LOC_ROOT) -name *.s)
+ASM_SOURCES = $(sort $(shell find $(LOC_ROOT) -name *.s))
 
 # AS includes
 AS_INCLUDES =
@@ -237,6 +237,6 @@ readelf:
 #######################################
 # dependencies
 #######################################
--include $(wildcard $(BUILD_DIR)/*.d)
+-include $(sort $(wildcard $(BUILD_DIR)/*.d))
 
 # *** EOF ***
