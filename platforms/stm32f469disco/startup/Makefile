@@ -40,7 +40,7 @@ endif
 # source
 ######################################
 # C sources
-C_SOURCES  = $(shell find $(LOC_ROOT) -name *.c)
+C_SOURCES  = $(sort $(shell find $(LOC_ROOT) -name *.c))
 # Bootloader core
 C_SOURCES += $(addprefix $(CORE_DIR)/,\
 	bl_integrity_check.c \
@@ -52,7 +52,7 @@ C_SOURCES += $(addprefix $(DRV_DIR)/STM32F4xx_HAL_Driver/Src/,\
 	stm32f4xx_hal_gpio.c \
 	)
 # CRC32
-C_SOURCES += $(shell find $(LIB_DIR)/crc32 -name *.c)
+C_SOURCES += $(sort $(shell find $(LIB_DIR)/crc32 -name *.c))
 
 # C includes
 C_INCLUDES =  \
@@ -77,7 +77,7 @@ CRC32_USE_LOOKUP_TABLE_SLICING_BY_4 \
 BL_NO_FATFS \
 
 # ASM sources
-ASM_SOURCES = $(shell find $(LOC_ROOT) -name *.s)
+ASM_SOURCES = $(sort $(shell find $(LOC_ROOT) -name *.s))
 
 # AS includes
 AS_INCLUDES =
@@ -191,6 +191,6 @@ readelf:
 #######################################
 # dependencies
 #######################################
--include $(wildcard $(BUILD_DIR)/*.d)
+-include $(sort $(wildcard $(BUILD_DIR)/*.d))
 
 # *** EOF ***
