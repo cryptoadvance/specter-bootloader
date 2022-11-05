@@ -137,7 +137,7 @@ static void lcd_layer_init(uint16_t LayerIndex, uint32_t FB_Address) {
 static void lcd_init_if_needed(void) {
   if (!ctx.lcd_initialized) {
     // Initialize LCD controller and turn of the display
-    BSP_LCD_InitEx(LCD_ORIENTATION_PORTRAIT);
+    BSP_LCD_Init();
     BSP_LCD_DisplayOff();
 
     // Initialize layers

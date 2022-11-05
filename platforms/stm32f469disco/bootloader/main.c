@@ -26,7 +26,7 @@ typedef enum upy_reset_mode_t {
 
 /// Version in the format parced by upgrade-generator
 static const char version_tag[] BL_ATTRS((used)) =
-    "<version:tag10>0100000099</version:tag10>";
+    "<version:tag10>0100000199</version:tag10>";
 
 /// Embedded memory map record
 // clang-format off
