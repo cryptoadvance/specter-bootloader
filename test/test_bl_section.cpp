@@ -33,7 +33,7 @@ static const uint8_t ref_payload[] = {
 static const bl_section_t ref_header = {
   .magic = BL_SECT_MAGIC,
   .struct_rev = BL_SECT_STRUCT_REV,
-  .name = "boot",
+  .name = {'b','o','o','t', 0},
   .pl_ver = 102213405U, // "1.22.134-rc5"
   .pl_size = sizeof(ref_payload),
   .pl_crc = 0x77AC5BCCU, // CRC of ref_payload
@@ -795,13 +795,13 @@ TEST_CASE("Make signature message") {
                   0xDDU, 0x09U, 0xB3U, 0x83U, 0xE3U, 0xF9U, 0xF8U, 0xCAU,
                   0x43U, 0x35U, 0x85U, 0xB6U, 0x18U, 0x45U, 0x2EU, 0x7EU,
                   0xD4U, 0xA0U, 0x1DU, 0x6DU, 0x0DU, 0x26U, 0x7CU, 0x16U},
-       .sect_name = "boot",
+       .sect_name = {'b', 'o', 'o', 't', 0},
        .pl_ver = 102213405},
       {.digest = {0xFFU, 0xDEU, 0xF2U, 0xCEU, 0x0DU, 0x94U, 0xC3U, 0x7BU,
                   0x17U, 0x62U, 0x46U, 0x97U, 0x87U, 0xE0U, 0x22U, 0x8CU,
                   0x3FU, 0x7DU, 0xD9U, 0x2EU, 0x30U, 0xB5U, 0xBCU, 0xC9U,
                   0xF3U, 0xC8U, 0x24U, 0x37U, 0x29U, 0x6CU, 0x29U, 0x85U},
-       .sect_name = "main",
+       .sect_name = {'m', 'a', 'i', 'n', 0},
        .pl_ver = 200000199}};
   const uint8_t ref_msg[] =
       "b1.22.134rc5-2.0.1-"
