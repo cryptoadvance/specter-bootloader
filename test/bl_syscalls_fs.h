@@ -10,6 +10,9 @@
 
 #include <dirent.h>
 #include <fnmatch.h>
+#ifndef FNM_FILE_NAME
+  #define FNM_FILE_NAME FNM_PATHNAME
+#endif
 
 /// Type for file size, unsigned
 typedef unsigned long int bl_fsize_t;

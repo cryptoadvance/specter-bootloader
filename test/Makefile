@@ -52,6 +52,7 @@ C_INCLUDES =  \
 -I$(LIB_DIR)/crc32 \
 -I$(LIB_DIR)/crypto \
 -I$(LIB_DIR)/secp256k1 \
+-I$(LIB_DIR)/secp256k1/include \
 -I$(LIB_DIR)/secp256k1/src \
 -I$(LIB_DIR)/bech32
 
@@ -76,7 +77,7 @@ CFLAGS = $(C_INCLUDES) -MMD -MP -Werror -Wno-unused-function \
 $(addprefix -D,$(C_DEFS))
 
 CPPFLAGS = -std=c++14
-LDFLAGS ?= -lstdc++
+LDFLAGS ?= -lstdc++ -lm -ldl
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -DDEBUG=1
