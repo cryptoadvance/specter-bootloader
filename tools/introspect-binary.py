@@ -146,8 +146,8 @@ def analyze_upgrade_file(sections, pubkey_info, boot_threshold, main_threshold, 
     if debug_mode:
         print(f"\n🔍 Debug - Payload sections:")
         for section in payload_sections:
-            print(f"     Section '{section.name}': {len(section.data)} bytes")
-            print(f"       First 16 bytes: {section.data[:16].hex()}")
+            print(f"     Section '{section.name}': {len(section.payload)} bytes")
+            print(f"       First 16 bytes: {section.payload[:16].hex()}")
     
     # Analyze signatures
     signatures = sig_section.signatures
@@ -206,20 +206,77 @@ def analyze_upgrade_file(sections, pubkey_info, boot_threshold, main_threshold, 
     status = "✅" if threshold_met else "❌"
     print(f"\n{status} Threshold verification:")
     print(f"   Valid signatures: {valid_sigs}/{threshold}")
-    
+
     if used_keys:
         key_list = [f"{owner}({t})" for t, owner in used_keys]
         print(f"   Signed by: {', '.join(key_list)}")
-    
+
     if threshold_met:
         print(f"   Result: Upgrade file is valid and can be installed")
     else:
         print(f"   Result: Upgrade file is invalid (insufficient signatures)")
+
+    # Analyze embedded public keys in payload sections (do this before exit)
+    analyze_embedded_keys(payload_sections, pubkey_info, debug_mode)
+
+    # Exit with error if threshold not met
+    if not threshold_met:
         sys.exit(1)
+
+def analyze_embedded_keys(payload_sections, pubkey_info, debug_mode):
+    """Analyze embedded public keys in payload sections"""
+
+    print(f"\n🔑 Public key analysis:")
+    print(f"   Searching for embedded keys in payload sections...")
+
+    keys_found = {}  # Use dict to avoid duplicates by fingerprint
+    is_bootloader = any(s.name == 'boot' for s in payload_sections)
+
+    # Search through all payload sections
+    for section in payload_sections:
+        section_data = section.payload
+
+        if debug_mode:
+            print(f"\n🔍 Debug - Searching in section '{section.name}' ({len(section_data)} bytes)")
+
+        for key_type in ['vendor', 'maintainer']:
+            for owner, fp_hex, pubkey in pubkey_info[key_type]:
+                # Search for the full public key (65 bytes)
+                pos = section_data.find(pubkey)
+                if pos >= 0:
+                    if fp_hex not in keys_found:
+                        keys_found[fp_hex] = {
+                            'owner': owner,
+                            'section': section.name,
+                            'position': pos,
+                            'types': set()
+                        }
+                    keys_found[fp_hex]['types'].add(key_type)
+
+    if keys_found:
+        print(f"   Found {len(keys_found)} embedded public key(s):")
+        for fp_hex, info in keys_found.items():
+            types_str = '/'.join(sorted(info['types']))
+            print(f"   ✅ {info['owner']} ({types_str}): {fp_hex}")
+            if debug_mode:
+                print(f"       Section: '{info['section']}'")
+                print(f"       Offset: 0x{info['position']:08x}")
+
+        print(f"\n✅ Key verification:")
+        print(f"   Result: Upgrade contains the public keys needed for future upgrade verification")
+    else:
+        if is_bootloader:
+            print("   ❌ No known public keys found in bootloader upgrade")
+            print("   Warning: This bootloader upgrade does not contain expected public keys!")
+        else:
+            print("   ℹ️  No public keys found (expected for main firmware upgrades)")
+            print("   Note: Main firmware upgrades don't include the bootloader.")
+            print("         Public keys remain in the existing bootloader and continue")
+            print("         to verify future upgrades.")
 
 def analyze_initial_firmware(binary_data, pubkey_info, debug_mode):
     """Analyze initial firmware binary"""
-    
+
     print(f"\n📦 Initial firmware analysis:")
     print(f"   Binary size: {len(binary_data)} bytes")
     
