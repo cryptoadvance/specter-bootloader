@@ -23,10 +23,6 @@ load_sections = upgrade_gen.load_sections
 parse_sections = upgrade_gen.parse_sections
 make_signature_message = upgrade_gen.make_signature_message
 
-__author__ = "Mike Tolkachev <contact@miketolkachev.dev>"
-__copyright__ = "Copyright 2020 Crypto Advance GmbH. All rights reserved"
-__version__ = "1.0.0"
-
 # Default signature thresholds
 DEFAULT_BOOTLOADER_THRESHOLD = 2
 DEFAULT_MAIN_FW_THRESHOLD = 1
