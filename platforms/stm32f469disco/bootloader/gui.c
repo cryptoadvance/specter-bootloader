@@ -70,6 +70,9 @@
 /// Alert text y offset from the last line of alert text
 #define ALERT_ACTION_Y_OFF 50U
 
+// Latency of LCD register write in milliseconds
+#define LCD_REGISTER_LATENCY_MS 2U
+
 /// GUI page identifier
 typedef enum gui_page_t {
   gui_page_progress = 0,  ///< Progress page
@@ -129,6 +132,7 @@ static void lcd_layer_init(uint16_t LayerIndex, uint32_t FB_Address) {
   BSP_LCD_SetBackColor(COLOR_BG);
   BSP_LCD_Clear(COLOR_BG);
   BSP_LCD_SetLayerVisible(LayerIndex, ENABLE);
+  HAL_Delay(LCD_REGISTER_LATENCY_MS);
 }
 
 /**
@@ -149,10 +153,11 @@ static void lcd_init_if_needed(void) {
     BSP_LCD_SelectLayer(LTDC_ACTIVE_LAYER_BACKGROUND);
 
     // Turn the display on
-    HAL_Delay(100);
+    HAL_Delay(100U);
     BSP_LCD_DisplayOn();
     ctx.displayed_page = gui_page_none;
     ctx.lcd_initialized = true;
+    HAL_Delay(LCD_REGISTER_LATENCY_MS);
   }
 }
 
@@ -414,6 +419,7 @@ bool gui_update_progress(const char* caption, const char* operation,
       BSP_LCD_SelectLayer(LTDC_ACTIVE_LAYER_BACKGROUND);
       BSP_LCD_SetBackColor(COLOR_BG);
       BSP_LCD_Clear(COLOR_BG);
+      HAL_Delay(LCD_REGISTER_LATENCY_MS);
       ok = ok && draw_text(0, PAGE_CAPTION_Y, CENTER_MODE, PAGE_CAPTION_FONT,
                            COLOR_TEXT, "Firmware Upgrade",
                            text_render_uppercase, NULL);
