@@ -1106,7 +1106,7 @@ static int make_section_report(char* dst_buf, size_t dst_size,
 static bool append_rw_protection_status(char* dst_str, size_t dst_size) {
   // Report state of write protection
   static const char* wrp_string =
-#ifdef WRITE_PROTECTION
+#if WRITE_PROTECTION
       "\n\nWrite protection: enabled";
 #else
       "\n\nWrite protection: disabled";
@@ -1268,7 +1268,7 @@ static bool do_upgrade_with_file(bl_file_t file, const bl_args_t* p_args,
     fatal_error("Error creating integrity check records");
   }
 
-#ifdef WRITE_PROTECTION
+#if WRITE_PROTECTION
   // Restore write protection for updated sections of the flash memory
   if (!set_write_protection_state(&bl_ctx.file_metadata, p_args->loaded_from,
                                   true)) {

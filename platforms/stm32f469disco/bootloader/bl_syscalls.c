@@ -349,7 +349,7 @@ bool blsys_init(void) {
     BSP_LED_Init(ERROR_LED);
     BSP_LED_Off(ERROR_LED);
     gui_init();
-#ifdef WRITE_PROTECTION
+#if WRITE_PROTECTION
     // Apply write protection to the Start-up code if needed
     if (!blsys_flash_write_protect(LV_VALUE(_startup_code_start),
                                    LV_VALUE(_startup_code_size), true)) {
@@ -764,7 +764,7 @@ bool blsys_flash_read_protect(int level_) {
       // Remove write protection from all the sectors because option bytes
       // become unmodifiable after enabling RDP Level 2.
       ok = ok && flash_set_write_protection_state_global(false);
-#ifdef WRITE_PROTECTION
+#if WRITE_PROTECTION
       // Re-apply write protection to the Start-up code
       ok = ok && blsys_flash_write_protect(LV_VALUE(_startup_code_start),
                                            LV_VALUE(_startup_code_size), true);
