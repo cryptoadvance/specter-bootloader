@@ -744,6 +744,8 @@ bool blsys_flash_write_protect(bl_addr_t addr, size_t size, bool enable) {
 bool blsys_flash_read_protect(int level_) {
   uint32_t new_rdp_level = OB_RDP_LEVEL_0;
   switch (level_) {
+    case 0:
+      break;
     case 1:
       new_rdp_level = OB_RDP_LEVEL_1;
       break;
