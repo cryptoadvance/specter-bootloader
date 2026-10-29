@@ -1,0 +1,5 @@
+bitstring==4.4.0
+click==8.5.0
+cryptography==50.0.2
+intelhex==2.3.0
+pytest==9.2.0

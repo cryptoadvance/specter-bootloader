@@ -31,19 +31,18 @@ If you are sure that everything works you can compile bootloader with all the pr
 
 When `make` is done the `.hex` files will be created in the `build` folder. To get the initial firmware that you can flash to the empty discovery board you need to use a tool `make-initial-firmware.py` in the [`tools`](../tools) folder.
 
-To create initial firmware go to the `tools` folder and install the dependencies:
+Set up the locked tools environment by following the
+[installation instructions](../tools/README.md#install), then go to the
+`tools` folder:
 
 ```sh
 cd tools
-virtualenv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
 ```
 
 Now you can create initial firmware:
 
 ```sh
-python3 make-initial-firmware.py -s ../build/stm32f469disco/startup/release/startup.hex -b ../build/stm32f469disco/bootloader/release/bootloader.hex -bin initial_firmware.bin
+.venv/bin/python make-initial-firmware.py -s ../build/stm32f469disco/startup/release/startup.hex -b ../build/stm32f469disco/bootloader/release/bootloader.hex -bin initial_firmware.bin
 ```
 
 If you want to include main firmware there as well, just add `-f ../path/to/compiled/main/firmware.hex`. Note that firmware should be compiled with `USE_DBOOT=1` for that.

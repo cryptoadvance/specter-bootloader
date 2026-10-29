@@ -13,23 +13,30 @@
 
 ## Install
 
-These tools are developed and tested in isolated Python environment. To create an empty environment using virtualenv run (from the root project directoty):
+These tools are developed and tested with Python 3.15.2 in an isolated
+environment. From this directory, verify the interpreter and create the
+environment:
 
 ```bash
-virtualenv .venv
+python3.15 --version  # must print Python 3.15.2
+python3.15 -m venv .venv
 ```
 
-Python dependencies can installed with hash checking by running:
+Install the locked dependencies with hash checking:
 
 ```bash
-pip install --require-hashes -r requirements.txt
+.venv/bin/pip install --require-hashes -r requirements.txt
 ```
 
-To update requirements.txt with hash generation use:
+`requirements.in` contains the exact direct dependencies. `requirements.txt`
+also locks and hashes their transitive dependencies. Regenerate it with the
+same interpreter and pip-tools release used by the lock:
 
 ```bash
-pip freeze > requirements.in
-pip-compile requirements.in --generate-hashes --allow-unsafe
+python3.15 -m venv .lock-venv
+.lock-venv/bin/pip install pip-tools==7.6.2
+.lock-venv/bin/python -m piptools compile --generate-hashes --strip-extras requirements.in
+rm -rf .lock-venv
 ```
 
 ## Test key generation
