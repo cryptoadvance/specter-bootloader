@@ -30,7 +30,7 @@ endif
 # Build path
 LOC_ROOT := $(strip $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
 TARG_ROOT := $(strip $(shell dirname $(LOC_ROOT)))
-CMN_ROOT := $(PWD)
+CMN_ROOT := $(abspath $(LOC_ROOT)/../../..)
 BUILD_DIR_ROOT = $(CMN_ROOT)/build/$(TARGET_PLATFORM)/$(TARGET)
 CMN_DIR = $(TARG_ROOT)/common
 DRV_DIR = $(TARG_ROOT)/drivers
